@@ -1,0 +1,6 @@
+@CohesionX.UserManagement_HostAddress = http://localhost:5236
+
+GET {{CohesionX.UserManagement_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
