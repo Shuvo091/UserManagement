@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System;
+using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -29,15 +30,14 @@ services.AddStackExchangeRedisCache(options =>
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
 	{
+		options.Authority = config["Jwt:Authority"] ?? "https://identityserver.example.com"; // Set your IdentityServer URL in config
+		options.Audience = config["Jwt:Audience"] ?? "CohesionX.Users";
 		options.TokenValidationParameters = new TokenValidationParameters
 		{
 			ValidateIssuer = true,
 			ValidateAudience = true,
 			ValidateLifetime = true,
-			ValidateIssuerSigningKey = true,
-			ValidIssuer = config["Jwt:Issuer"],
-			ValidAudience = config["Jwt:Audience"],
-			IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:SecretKey"]!))
+			RoleClaimType = "role"
 		};
 	});
 
@@ -48,19 +48,27 @@ services.AddEndpointsApiExplorer();
 services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "User Management API", Version = "v1" });
-	options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+	options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
 	{
-		In = ParameterLocation.Header,
-		Description = "JWT Authorization header using the Bearer scheme",
-		Name = "Authorization",
-		Type = SecuritySchemeType.Http,
-		Scheme = "Bearer"
+		Type = SecuritySchemeType.OAuth2,
+		Flows = new OpenApiOAuthFlows
+		{
+			AuthorizationCode = new OpenApiOAuthFlow
+			{
+				AuthorizationUrl = new Uri(config["Jwt:Authority"] + "/connect/authorize"),
+				TokenUrl = new Uri(config["Jwt:Authority"] + "/connect/token"),
+				Scopes = new Dictionary<string, string>
+				{
+					{ config["Jwt:Audience"], "Access CohesionX User Management API" }
+				}
+			}
+		}
 	});
 	options.AddSecurityRequirement(new OpenApiSecurityRequirement
 	{
 		{
-			new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
-			new string[] {}
+			new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2" } },
+			new string[] { config["Jwt:Audience"] }
 		}
 	});
 });
