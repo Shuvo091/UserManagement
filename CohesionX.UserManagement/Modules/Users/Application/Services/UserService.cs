@@ -17,6 +17,20 @@ public class UserService : IUserService
 
 	public async Task<Guid> RegisterUserAsync(UserRegisterDto dto)
 	{
+		// Basic field validation
+		if (string.IsNullOrWhiteSpace(dto.IdNumber) ||
+			string.IsNullOrWhiteSpace(dto.FirstName) ||
+			string.IsNullOrWhiteSpace(dto.LastName) ||
+			string.IsNullOrWhiteSpace(dto.Email) ||
+			string.IsNullOrWhiteSpace(dto.PhoneNumber))
+			throw new ArgumentException("All fields are required.");
+
+		// South African ID format check (basic: 13 digits)
+		if (dto.IdNumber.Length != 13 || !dto.IdNumber.All(char.IsDigit))
+			throw new ArgumentException("ID number must be 13 digits.");
+
+		var now = DateTime.UtcNow;
+
 		var user = new User
 		{
 			Id = Guid.NewGuid(),
@@ -24,7 +38,13 @@ public class UserService : IUserService
 			FirstName = dto.FirstName,
 			LastName = dto.LastName,
 			Email = dto.Email,
-			PhoneNumber = dto.PhoneNumber
+			Phone = dto.PhoneNumber,
+			EloRating = 1200, // Initial Elo
+			PeakElo = 1200,
+			Status = "pending_verification",
+			IsProfessional = false,
+			CreatedAt = now,
+			UpdatedAt = now
 		};
 
 		await _repo.AddAsync(user);
@@ -32,4 +52,5 @@ public class UserService : IUserService
 
 		return user.Id;
 	}
+
 }

@@ -14,7 +14,14 @@ public static class UserEndpoints
 		group.MapPost("/register", async (UserRegisterDto dto, IUserService service) =>
 		{
 			var userId = await service.RegisterUserAsync(dto);
-			return Results.Created($"/api/v1/users/{userId}", new { userId });
+			return Results.Created($"/api/v1/users/{userId}/profile", new
+			{
+				userId,
+				eloRating = 1200,
+				status = "pending_verification",
+				profileUri = $"/api/v1/users/{userId}/profile",
+				verificationRequired = new[] { "id_document_upload" }
+			});
 		});
 
 		return endpoints;
