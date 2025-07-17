@@ -1,5 +1,4 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Modules.Users.Persistence.Config;
 using Microsoft.EntityFrameworkCore;
 
 namespace CohesionX.UserManagement.Shared.Persistence;

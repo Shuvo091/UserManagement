@@ -27,15 +27,11 @@
   <ItemGroup>
     <Folder Include="Controllers\" />
     <Folder Include="Middleware\" />
-    <Folder Include="Modules\Elo\" />
     <Folder Include="Modules\Availability\" />
     <Folder Include="Modules\Admin\" />
-    <Folder Include="Modules\Users\Application\DTOs\" />
-    <Folder Include="Modules\Users\Application\Services\" />
     <Folder Include="Modules\Users\Api\" />
     <Folder Include="Modules\Users\Config\" />
     <Folder Include="Modules\Users\Infrastructure\Redis\" />
-    <Folder Include="Modules\Users\Persistence\Config\" />
   </ItemGroup>
 
 </Project>

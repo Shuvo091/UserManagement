@@ -5,5 +5,6 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 	public interface IUserService
 	{
 		Task<Guid> RegisterUserAsync(UserRegisterDto dto);
+		Task<UserProfileDto> GetProfileAsync(Guid userId);
 	}
 }

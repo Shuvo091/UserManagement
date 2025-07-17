@@ -1,8 +1,8 @@
-﻿using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
+﻿using CohesionX.UserManagement.Modules.Elo.Application.Services;
+using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Application.Services;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Persistence;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CohesionX.UserManagement.Modules.Users.Config;
 
@@ -12,6 +12,8 @@ public static class UserModuleInstaller
 	{
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IUserRepository, UserRepository>();
+		services.AddScoped<IEloService, EloService>();
+		services.AddScoped<IEloRepository, EloRepository>();
 		return services;
 	}
 }

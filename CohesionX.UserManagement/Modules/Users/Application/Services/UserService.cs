@@ -1,4 +1,5 @@
-﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+﻿using AutoMapper;
+using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
@@ -9,10 +10,12 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Services;
 public class UserService : IUserService
 {
 	private readonly IUserRepository _repo;
+	private readonly IMapper _mapper;
 
-	public UserService(IUserRepository repo)
+	public UserService(IUserRepository repo, IMapper mapper)
 	{
 		_repo = repo;
+		_mapper = mapper;
 	}
 
 	public async Task<Guid> RegisterUserAsync(UserRegisterDto dto)
@@ -51,6 +54,15 @@ public class UserService : IUserService
 		await _repo.SaveChangesAsync();
 
 		return user.Id;
+	}
+
+
+	public async Task<UserProfileDto> GetProfileAsync(Guid userId)
+	{
+		var u = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (u is null) throw new KeyNotFoundException("User not found");
+
+		return _mapper.Map<UserProfileDto>(u);
 	}
 
 }

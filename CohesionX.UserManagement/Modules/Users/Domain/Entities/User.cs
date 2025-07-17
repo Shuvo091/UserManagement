@@ -13,7 +13,7 @@ public class User
 	public bool IsProfessional { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
-
+	public int GamesPlayed { get; set; }
 	public ICollection<UserDialect> Dialects { get; set; } = [];
 	public UserStatistics? Statistics { get; set; }
 	public ICollection<EloHistory> EloHistories { get; set; } = [];
