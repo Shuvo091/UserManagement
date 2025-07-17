@@ -84,6 +84,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Minimal endpoints
-app.MapUserEndpoints();
+// app.MapUserEndpoints();
+
+app.MapControllers();
 
 app.Run();

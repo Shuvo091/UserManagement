@@ -16,6 +16,10 @@ public class UserRepository : IUserRepository
 
 	public Task AddAsync(User user) =>
 		_context.Users.AddAsync(user).AsTask();
+
+	public Task<bool> EmailExistsAsync(string email) =>
+		_context.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
+
 	public Task<User?> GetUserByIdAsync(Guid userId, bool includeRelated = false)
 	{
 		if (!includeRelated)

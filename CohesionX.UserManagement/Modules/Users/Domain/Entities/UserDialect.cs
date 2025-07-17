@@ -3,7 +3,7 @@ public class UserDialect
 {
 	public Guid Id { get; set; }
 	public Guid UserId { get; set; }
-	public string Dialect { get; set; } = default!;
+	public string DialectCode { get; set; } = default!;
 	public string ProficiencyLevel { get; set; } = default!;
 	public bool IsPrimary { get; set; }
 	public DateTime CreatedAt { get; set; }

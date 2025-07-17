@@ -14,6 +14,8 @@ public static class UserModuleInstaller
 		services.AddScoped<IUserRepository, UserRepository>();
 		services.AddScoped<IEloService, EloService>();
 		services.AddScoped<IEloRepository, EloRepository>();
+		services.AddScoped<IPasswordHasher, PasswordHasher>();
+		services.AddScoped<IFileStorageService, FileStorageService>();
 		return services;
 	}
 }
