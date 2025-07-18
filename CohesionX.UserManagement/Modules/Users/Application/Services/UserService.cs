@@ -15,22 +15,19 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Services;
 public class UserService : IUserService
 {
 	private readonly IUserRepository _repo;
+	private readonly IAuditLogRepository _auditLogRepo;
 	private readonly IMapper _mapper;
-	private readonly IPasswordHasher _passwordHasher;
-	private readonly IDistributedCache _cache;
 	private readonly int _initElo;
 
 	public UserService(
 		IUserRepository repo,
+		IAuditLogRepository auditLogRepo,
 		IMapper mapper,
-		IPasswordHasher passwordHasher,
-		IDistributedCache cache,
 		IConfiguration configuration)
 	{
 		_repo = repo;
+		_auditLogRepo = auditLogRepo;
 		_mapper = mapper;
-		_passwordHasher = passwordHasher;
-		_cache = cache;
 		var initEloStr = configuration["INITIAL_ELO_RATING"];
 		if (!int.TryParse(initEloStr, out var initElo)) initElo = 360;
 		_initElo = initElo;
@@ -126,4 +123,8 @@ public class UserService : IUserService
 		return users;
 	}
 
+	public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
+	{
+		await _auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
+	}
 }

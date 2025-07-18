@@ -105,27 +105,46 @@ public class RedisService : IRedisService
 		await _cache.SetStringAsync(GetUserEloKey(userId), json, GetTtlOptions(_userEloTtl));
 	}
 
-	public async Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds)
+	public async Task<(Dictionary<Guid, UserAvailabilityRedisDto> AvailabilityMap, Dictionary<Guid, UserEloDto> EloMap)>
+		GetBulkAvailabilityAndEloAsync(IEnumerable<Guid> userIds)
 	{
-		var keys = userIds.Select(id => (object)GetAvailabilityKey(id)).ToArray();
+		var idList = userIds.ToList();
+		var availabilityKeys = idList.Select(id => (object)GetAvailabilityKey(id)).ToArray();
+		var eloKeys = idList.Select(id => (object)GetUserEloKey(id)).ToArray();
 
-		// Use Redis batch to reduce round trips
-		var tasks = keys.Select(k => _cache.GetStringAsync((string)k)).ToList();
-		await Task.WhenAll(tasks);
+		// Start all Redis fetches
+		var availabilityTasks = availabilityKeys.Select(k => _cache.GetStringAsync((string)k)).ToList();
+		var eloTasks = eloKeys.Select(k => _cache.GetStringAsync((string)k)).ToList();
 
-		var result = new Dictionary<Guid, UserAvailabilityRedisDto>();
+		await Task.WhenAll(availabilityTasks.Concat(eloTasks));
 
-		for (int i = 0; i < userIds.Count(); i++)
+		var availabilityMap = new Dictionary<Guid, UserAvailabilityRedisDto>();
+		var eloMap = new Dictionary<Guid, UserEloDto>();
+
+		for (int i = 0; i < idList.Count; i++)
 		{
-			var json = tasks[i].Result;
-			if (!string.IsNullOrWhiteSpace(json))
+			var userId = idList[i];
+
+			// Availability
+			var availabilityJson = availabilityTasks[i].Result;
+			if (!string.IsNullOrWhiteSpace(availabilityJson))
 			{
-				var availability = JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
+				var availability = JsonSerializer.Deserialize<UserAvailabilityRedisDto>(availabilityJson);
 				if (availability != null)
-					result[userIds.ElementAt(i)] = availability;
+					availabilityMap[userId] = availability;
+			}
+
+			// Elo
+			var eloJson = eloTasks[i].Result;
+			if (!string.IsNullOrWhiteSpace(eloJson))
+			{
+				var elo = JsonSerializer.Deserialize<UserEloDto>(eloJson);
+				if (elo != null)
+					eloMap[userId] = elo;
 			}
 		}
 
-		return result;
+		return (availabilityMap, eloMap);
 	}
+
 }

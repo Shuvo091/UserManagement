@@ -71,8 +71,6 @@ public class UserRepository : IUserRepository
 	{
 		var query = _context.Users
 			.Include(u => u.Dialects)
-			.Include(u => u.Statistics)
-			.Include(u => u.JobClaims)
 			.AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(dialect))

@@ -12,5 +12,6 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 		Task<RegistrationResult> RegisterUserAsync(UserRegisterDto dto);
 		Task<UserProfileDto> GetProfileAsync(Guid userId);
 		Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
+		Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent);
 	}
 }

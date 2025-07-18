@@ -17,5 +17,5 @@ public interface IRedisService
 	Task<UserEloDto?> GetUserEloAsync(Guid userId);
 	Task SetUserEloAsync(Guid userId, UserEloDto dto);
 
-	Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds);
+	Task<(Dictionary<Guid, UserAvailabilityRedisDto> AvailabilityMap, Dictionary<Guid, UserEloDto> EloMap)> GetBulkAvailabilityAndEloAsync(IEnumerable<Guid> userIds);
 }

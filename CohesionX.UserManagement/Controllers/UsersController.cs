@@ -68,44 +68,89 @@ namespace CohesionX.UserManagement.Controllers
 			[FromQuery] int? maxWorkload,
 			[FromQuery] int? limit)
 		{
-			var availableUsers = new List<UserAvailabilityResponse>();
+			var availableUsersResp = new List<UserAvailabilityResponse>();
 			var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
-			if (!users.Any()) return Ok(availableUsers);
+			if (!users.Any()) return Ok(availableUsersResp);
 
-			var availabilityMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
+			var cacheMap = await _redisService.GetBulkAvailabilityAndEloAsync(users.Select(u => u.Id));
 
-			availableUsers = users
-				.Where(u => availabilityMap.ContainsKey(u.Id) 
-						&& availabilityMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
-				.Select(u => _mapper.Map<UserAvailabilityResponse>(u))
+			var availableUsers = users
+				.Where(u => cacheMap.AvailabilityMap.ContainsKey(u.Id)
+						&& cacheMap.AvailabilityMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
+				.Select(u =>
+				{
+					var availability = cacheMap.AvailabilityMap.ContainsKey(u.Id)
+						? cacheMap.AvailabilityMap[u.Id]
+						: null;
+
+					var eloPerformance = cacheMap.EloMap.ContainsKey(u.Id)
+						? cacheMap.EloMap[u.Id]
+						: null;
+
+					return new AvailableUsersDto
+					{
+						UserId = u.Id,
+						EloRating = eloPerformance?.CurrentElo,
+						PeakElo = eloPerformance?.PeakElo,
+						DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
+						CurrentWorkload = availability?.CurrentWorkload,
+						RecentPerformance = eloPerformance?.RecentTrend,
+						GamesPlayed = eloPerformance?.GamesPlayed,
+						Role = u.Role,
+						BypassQaComparison = u.Role == UserRole.PROFESSIONAL,
+						LastActive = eloPerformance?.LastJobCompleted
+					};
+				})
 				.ToList();
 
-			return Ok(availableUsers);
-		}
 
-		[HttpGet("{userId}/availability")]
-		public IActionResult GetAvailability([FromRoute] Guid userId)
-		{
-			// TODO: Implement get availability logic
-			return Ok(new
-			{
-				status = "available",
-				maxConcurrentJobs = 3,
-				currentWorkload = 1,
-				lastUpdate = DateTime.UtcNow
+			return Ok(new UserAvailabilityResponse { 
+				AvailableUsers = availableUsers,
+				TotalAvailable = availableUsers.Count,
+				QueryTimestamp = DateTime.UtcNow
 			});
 		}
 
-		[HttpPatch("{userId}/availability")]
-		public IActionResult PatchAvailability([FromRoute] Guid userId, [FromBody] object availabilityUpdate)
+		[HttpGet("{userId}/availability")]
+		public async Task<IActionResult> GetAvailability([FromRoute] Guid userId)
 		{
-			// TODO: Implement patch availability logic
-			return Ok(new
+
+			var availability = await _redisService.GetAvailabilityAsync(userId);
+			return Ok(availability == null ? "User Not Found" : availability);
+		}
+
+		[HttpPatch("{userId}/availability")]
+		public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateDto availabilityUpdate)
+		{
+			var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+			var userAgent = Request.Headers["User-Agent"].ToString() ?? "unknown";
+			var existingAvailability = await _redisService.GetAvailabilityAsync(userId)
+								?? new UserAvailabilityRedisDto();
+
+			if (availabilityUpdate != null)
 			{
-				availabilityUpdated = true,
-				currentStatus = "available",
-				maxConcurrentJobs = 3,
-				lastUpdated = DateTime.UtcNow
+				existingAvailability.Status = availabilityUpdate.Status;
+				existingAvailability.MaxConcurrentJobs = availabilityUpdate.MaxConcurrentJobs;
+			}
+
+
+			existingAvailability.LastUpdate = DateTime.UtcNow;
+
+			// 1. Write to Redis
+			await _redisService.SetAvailabilityAsync(userId, existingAvailability);
+
+			// 2. Async sync to PostgreSQL for audit (simplified placeholder here)
+			_ = Task.Run(async () =>
+			{
+				await _userService.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
+			});
+
+			return Ok(new UserAvailabilityUpdateResponse
+			{
+				AvailabilityUpdated = "success",
+				CurrentStatus = existingAvailability.Status,
+				MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
+				LastUpdated = existingAvailability.LastUpdate
 			});
 		}
 
