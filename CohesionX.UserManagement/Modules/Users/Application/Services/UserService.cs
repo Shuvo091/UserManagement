@@ -4,10 +4,6 @@ using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Constants;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
-using CohesionX.UserManagement.Modules.Users.Persistence;
-using CohesionX.UserManagement.Shared.Constants;
-using Microsoft.Extensions.Caching.Distributed;
-using System.Linq.Expressions;
 using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Services;
@@ -33,7 +29,7 @@ public class UserService : IUserService
 		_initElo = initElo;
 	}
 
-	public async Task<RegistrationResult> RegisterUserAsync(UserRegisterDto dto)
+	public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
 	{
 		// Validate required fields
 		if (string.IsNullOrWhiteSpace(dto.FirstName) ||
@@ -99,7 +95,7 @@ public class UserService : IUserService
 		await _repo.AddAsync(user);
 		await _repo.SaveChangesAsync();
 
-		return new RegistrationResult
+		return new UserRegisterResponse
 		{
 			UserId = user.Id,
 			EloRating = user.Statistics.CurrentElo,
@@ -117,6 +113,14 @@ public class UserService : IUserService
 		return _mapper.Map<UserProfileDto>(user);
 	}
 
+	public async Task<User> GetUserAsync(Guid userId)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null) throw new KeyNotFoundException("User not found");
+
+		return user;
+	}
+
 	public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
 	{
 		var users = await _repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
@@ -126,5 +130,42 @@ public class UserService : IUserService
 	public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
 	{
 		await _auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
+	}
+
+	public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
+	{
+		user.Status = UserStatus.ACTIVE;
+		var verificationRecord = new VerificationRecord
+		{
+			VerificationType = verificationDto.VerificationType,
+			Status = VerificationStatus.APPROVED,
+			VerificationLevel = VerificationLevel.BASIC,
+			VerificationData = JsonSerializer.Serialize(verificationDto),
+			VerifiedAt = DateTime.UtcNow,
+			CreatedAt = DateTime.UtcNow
+		};
+		user.VerificationRecords.Add(verificationRecord);
+		await _repo.UpdateAsync(user);
+
+		var response = new VerificationResponse
+		{
+			VerificationStatus = verificationRecord.Status,
+			EloRating = user.Statistics?.CurrentElo ?? 0,
+			StatusChanged = "pending_verification -> active",
+			EligibleForWork = true,
+			ActivationMethod = "automatic",
+			ActivatedAt = DateTime.UtcNow,
+			VerificationLevel = verificationRecord.VerificationLevel,
+			NextSteps = new[] { "profile_completion", "job_browsing" },
+			RoadmapNote = "V2 will include automated ID verification via Department of Home Affairs"
+		};
+		return response;
+	}
+
+	public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
+	{
+		var user = await _repo.GetUserByIdAsync(userId);
+		if(user == null) return false;
+		return user.IdNumber == idNumber;
 	}
 }

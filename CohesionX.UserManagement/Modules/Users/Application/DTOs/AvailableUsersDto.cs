@@ -29,7 +29,7 @@ public class UserAvailabilityRedisDto
 	public DateTime LastUpdate { get; set; } = DateTime.UtcNow;
 }
 
-public class UserAvailabilityUpdateDto
+public class UserAvailabilityUpdateRequest
 {
 	public string Status { get; set; } = default!;
 	public int MaxConcurrentJobs { get; set; } = 3;

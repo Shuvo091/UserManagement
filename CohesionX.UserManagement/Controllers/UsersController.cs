@@ -1,8 +1,6 @@
 using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using CohesionX.UserManagement.Shared.Persistence;
-using Microsoft.EntityFrameworkCore;
 using CohesionX.UserManagement.Modules.Users.Domain.Constants;
 using CohesionX.UserManagement.Modules.Users.Application.Enums;
 using AutoMapper;
@@ -32,7 +30,7 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpPost("register")]
-		public async Task<IActionResult> Register([FromForm] UserRegisterDto dto)
+		public async Task<IActionResult> Register([FromForm] UserRegisterRequest dto)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState);
@@ -43,21 +41,45 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpPost("{userId}/verify")]
-		public IActionResult VerifyUser([FromRoute] Guid userId, [FromBody] object verificationRequest)
+		public async Task<IActionResult> VerifyUser([FromRoute] Guid userId, [FromBody] VerificationRequest verificationRequest)
 		{
-			// TODO: Implement verification logic
-			return Ok(new
+			var user = await _userService.GetUserAsync(userId);
+			if(user is null)
 			{
-				verificationStatus = "approved",
-				eloRating = 1200,
-				statusChanged = "pending_verification -> active",
-				eligibleForWork = true,
-				activationMethod = "automatic",
-				activatedAt = DateTime.UtcNow,
-				verificationLevel = "basic_v1",
-				nextSteps = new[] { "profile_completion", "job_browsing" },
-				roadmapNote = "V2 will include automated ID verification via Department of Home Affairs"
-			});
+				return NotFound(new { error = "User not found" });
+			}
+			// Basic validation checks
+			if (verificationRequest.VerificationType != "id_document")
+			{
+				return BadRequest(new { error = "Unsupported verification type" });
+			}
+
+			var idValidation = verificationRequest.IdDocumentValidation;
+			if (idValidation is null || !idValidation.Enabled)
+			{
+				return BadRequest(new { error = "ID document validation must be enabled" });
+			}
+
+			var validationResult = idValidation.ValidationResult;
+			if (validationResult is null ||
+				!validationResult.IdFormatValid ||
+				!validationResult.PhotoPresent ||
+				!idValidation.PhotoUploaded ||
+				user.IdNumber != idValidation.IdNumber )
+			{
+				return BadRequest(new { error = "ID document validation failed field checks" });
+			}
+
+			var additional = verificationRequest.AdditionalVerification;
+			if (additional is null ||
+				!additional.PhoneVerification ||
+				!additional.EmailVerification)
+			{
+				return BadRequest(new { error = "Phone and Email verification must be completed" });
+			}
+
+			var response = await _userService.ActivateUser(user, verificationRequest);
+			return Ok(response);
 		}
 
 		[HttpGet("available-for-work")]
@@ -120,7 +142,7 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpPatch("{userId}/availability")]
-		public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateDto availabilityUpdate)
+		public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateRequest availabilityUpdate)
 		{
 			var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 			var userAgent = Request.Headers["User-Agent"].ToString() ?? "unknown";

@@ -2,7 +2,7 @@
 
 namespace CohesionX.UserManagement.Modules.Users.Application.DTOs;
 
-public class UserRegisterDto
+public class UserRegisterRequest
 {
 	[Required]
 	public string IdNumber { get; set; } = default!;
@@ -21,7 +21,7 @@ public class UserRegisterDto
 	public bool consentToDataProcessing { get; set; }
 }
 
-public class RegistrationResult
+public class UserRegisterResponse
 {
 	public Guid UserId { get; set; }
 	public int EloRating { get; set; }

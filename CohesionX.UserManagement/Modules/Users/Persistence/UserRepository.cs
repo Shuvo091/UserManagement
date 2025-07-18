@@ -22,6 +22,12 @@ public class UserRepository : IUserRepository
 	public Task AddAsync(User user) =>
 		_context.Users.AddAsync(user).AsTask();
 
+	public async Task UpdateAsync(User user)
+	{
+		_context.Users.Update(user);
+		await _context.SaveChangesAsync();
+	}
+
 	public Task<bool> EmailExistsAsync(string email) =>
 		_context.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
 
