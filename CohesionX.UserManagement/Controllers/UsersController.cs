@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using CohesionX.UserManagement.Modules.Users.Domain.Constants;
+using CohesionX.UserManagement.Modules.Users.Application.Enums;
+using AutoMapper;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -15,14 +17,18 @@ namespace CohesionX.UserManagement.Controllers
 		private readonly IUserService _userService;
 		private readonly IFileStorageService _fileStorageService;
 		private readonly IRedisService _redisService;
-		private readonly AppDbContext _db;
+		private readonly IMapper _mapper;
 
-		public UsersController(IUserService userService, IFileStorageService fileStorageService, IRedisService redisService, AppDbContext db)
+
+		public UsersController(IUserService userService
+			, IFileStorageService fileStorageService
+			, IRedisService redisService
+			, IMapper mapper)
 		{
 			_userService = userService;
 			_fileStorageService = fileStorageService;
 			_redisService = redisService;
-			_db = db;
+			_mapper = mapper;
 		}
 
 		[HttpPost("register")]
@@ -31,22 +37,9 @@ namespace CohesionX.UserManagement.Controllers
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState);
 
-			string? idPhotoPath = null;
-			if (dto.IdPhoto != null)
-			{
-				idPhotoPath = await _fileStorageService.StoreFileAsync(dto.IdPhoto);
-			}
+			var result = await _userService.RegisterUserAsync(dto);
 
-			var result = await _userService.RegisterUserAsync(dto, idPhotoPath);
-
-			return Created($"/api/v1/users/{result.UserId}/profile", new
-			{
-				userId = result.UserId,
-				eloRating = 1200,
-				status = result.Status,
-				profileUri = $"/api/v1/users/{result.UserId}/profile",
-				verificationRequired = result.VerificationRequired
-			});
+			return Created($"/api/v1/users/{result.UserId}/profile", result);
 		}
 
 		[HttpPost("{userId}/verify")]
@@ -75,13 +68,19 @@ namespace CohesionX.UserManagement.Controllers
 			[FromQuery] int? maxWorkload,
 			[FromQuery] int? limit)
 		{
-			
+			var availableUsers = new List<UserAvailabilityResponse>();
+			var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
+			if (!users.Any()) return Ok(availableUsers);
 
-			return Ok(new
-			{
-				totalAvailable = 0,
-				queryTimestamp = DateTime.UtcNow
-			});
+			var availabilityMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
+
+			availableUsers = users
+				.Where(u => availabilityMap.ContainsKey(u.Id) 
+						&& availabilityMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
+				.Select(u => _mapper.Map<UserAvailabilityResponse>(u))
+				.ToList();
+
+			return Ok(availableUsers);
 		}
 
 		[HttpGet("{userId}/availability")]

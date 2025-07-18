@@ -37,14 +37,14 @@ public class RedisService : IRedisService
 	private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
 	private string GetUserEloKey(Guid userId) => $"user:elo:{userId}";
 
-	public async Task<UserAvailabilityDto?> GetAvailabilityAsync(Guid userId)
+	public async Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId)
 	{
 		var json = await _cache.GetStringAsync(GetAvailabilityKey(userId));
 		if (string.IsNullOrWhiteSpace(json)) return null;
-		return JsonSerializer.Deserialize<UserAvailabilityDto>(json);
+		return JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
 	}
 
-	public async Task SetAvailabilityAsync(Guid userId, UserAvailabilityDto dto)
+	public async Task SetAvailabilityAsync(Guid userId, UserAvailabilityRedisDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
 		await _cache.SetStringAsync(GetAvailabilityKey(userId), json, GetTtlOptions(_availabilityTtl));
@@ -103,5 +103,29 @@ public class RedisService : IRedisService
 	{
 		var json = JsonSerializer.Serialize(dto);
 		await _cache.SetStringAsync(GetUserEloKey(userId), json, GetTtlOptions(_userEloTtl));
+	}
+
+	public async Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds)
+	{
+		var keys = userIds.Select(id => (object)GetAvailabilityKey(id)).ToArray();
+
+		// Use Redis batch to reduce round trips
+		var tasks = keys.Select(k => _cache.GetStringAsync((string)k)).ToList();
+		await Task.WhenAll(tasks);
+
+		var result = new Dictionary<Guid, UserAvailabilityRedisDto>();
+
+		for (int i = 0; i < userIds.Count(); i++)
+		{
+			var json = tasks[i].Result;
+			if (!string.IsNullOrWhiteSpace(json))
+			{
+				var availability = JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
+				if (availability != null)
+					result[userIds.ElementAt(i)] = availability;
+			}
+		}
+
+		return result;
 	}
 }

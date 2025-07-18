@@ -10,18 +10,22 @@ public class UserRegisterDto
 	public string FirstName { get; set; } = default!;
 	[Required]
 	public string LastName { get; set; } = default!;
-	[Required]
+	[Required, EmailAddress]
 	public string Email { get; set; } = default!;
-	[Required]
-	public string Password { get; set; } = default!;
 	[Required]
 	public string Phone { get; set; } = default!; // Added
 	[Required]
-	public List<string>? DialectPreferences { get; set; } = new(); // Added
+	public List<string> DialectPreferences { get; set; } = new(); // Added
 	[Required]
 	public string LanguageExperience { get; set; } = default!; // Added
-	public DateTime? DateOfBirth { get; set; }
-	public IFormFile? IdPhoto { get; set; }
-	public bool ConsentToPIICollection { get; set; }
-	public string? Address { get; set; }
+	public bool consentToDataProcessing { get; set; }
+}
+
+public class RegistrationResult
+{
+	public Guid UserId { get; set; }
+	public int EloRating { get; set; }
+	public string Status { get; set; } = default!;
+	public string ProfileUri { get; set; } = default!;
+	public List<string> VerificationRequired { get; set; } = [];
 }
