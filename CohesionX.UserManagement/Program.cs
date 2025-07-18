@@ -14,12 +14,12 @@ services.AddControllers();
 
 // PostgreSQL DbContext
 services.AddDbContext<AppDbContext>(options =>
-	options.UseNpgsql(config.GetConnectionString("Postgres")));
+	options.UseNpgsql(config["DB_CONNECTION_STRING:db-secrets"]));
 
 // Redis (optional for availability cache)
 services.AddStackExchangeRedisCache(options =>
 {
-	options.Configuration = config.GetConnectionString("Redis");
+	options.Configuration = config["REDIS_CONNECTION_STRING:redis-secrets"];
 });
 
 // Authentication: JWT Bearer with Role-based claims

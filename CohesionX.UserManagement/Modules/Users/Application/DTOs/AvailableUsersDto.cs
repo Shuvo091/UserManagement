@@ -14,11 +14,13 @@ public class AvailableUserResponseDto
 	public DateTime LastActive { get; set; }
 }
 
-public record UserAvailabilityDto(
-	string Status,
-	int CurrentWorkload,
-	DateTime LastUpdate
-);
+public class UserAvailabilityDto
+{
+	public string Status { get; set; } = default!;
+	public int MaxConcurrentJobs { get; set; } = 3;
+	public int CurrentWorkload { get; set; } = 0;
+	public DateTime LastUpdate { get; set; } = DateTime.UtcNow;
+}
 
 public class UserWithEloAndDialectsDto
 {
