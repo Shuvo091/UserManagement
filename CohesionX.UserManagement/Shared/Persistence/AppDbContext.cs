@@ -24,7 +24,7 @@ public class AppDbContext : DbContext
 		{
 			entity.HasKey(e => e.Id);
 			entity.HasIndex(e => e.Email).IsUnique();
-			entity.HasIndex(e => e.SouthAfricanIdNumber).IsUnique();
+			entity.HasIndex(e => e.IdNumber).IsUnique();
 
 			entity.HasMany(u => u.Dialects).WithOne(d => d.User).HasForeignKey(d => d.UserId);
 			entity.HasOne(u => u.Statistics).WithOne(s => s.User).HasForeignKey<UserStatistics>(s => s.UserId);

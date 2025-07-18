@@ -66,9 +66,8 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ComparisonId")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("ComparisonId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ComparisonType")
                         .IsRequired()
@@ -99,6 +98,8 @@ namespace CohesionX.UserManagement.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ComparisonId");
 
                     b.HasIndex("UserId");
 
@@ -144,12 +145,11 @@ namespace CohesionX.UserManagement.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ComparisonId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CompletionId")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -170,6 +170,8 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ComparisonId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("JobCompletions");
@@ -181,26 +183,8 @@ namespace CohesionX.UserManagement.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("ActivatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ActivationMethod")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("ConsentToPIICollection")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("DateOfBirth")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EloRating")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -210,14 +194,9 @@ namespace CohesionX.UserManagement.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("GamesPlayed")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("IdPhotoPath")
+                    b.Property<string>("IdNumber")
+                        .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsProfessional")
                         .HasColumnType("boolean");
@@ -226,18 +205,11 @@ namespace CohesionX.UserManagement.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("PeakElo")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("SouthAfricanIdNumber")
+                    b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -248,18 +220,12 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("UserRole")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("VerificationLevel")
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("SouthAfricanIdNumber")
+                    b.HasIndex("IdNumber")
                         .IsUnique();
 
                     b.ToTable("Users");
@@ -274,7 +240,7 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DialectCode")
+                    b.Property<string>("Dialect")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -384,11 +350,19 @@ namespace CohesionX.UserManagement.Migrations
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.EloHistory", b =>
                 {
+                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                        .WithMany()
+                        .HasForeignKey("ComparisonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("EloHistories")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Comparison");
 
                     b.Navigation("User");
                 });
@@ -406,11 +380,19 @@ namespace CohesionX.UserManagement.Migrations
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobCompletion", b =>
                 {
+                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                        .WithMany()
+                        .HasForeignKey("ComparisonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("JobCompletions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Comparison");
 
                     b.Navigation("User");
                 });

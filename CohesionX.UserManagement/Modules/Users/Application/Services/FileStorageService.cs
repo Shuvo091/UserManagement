@@ -1,5 +1,4 @@
-﻿using CohesionX.UserManagement.Modules.Users.Api;
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
+﻿using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Services;
 

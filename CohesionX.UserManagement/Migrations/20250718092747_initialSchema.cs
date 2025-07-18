@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CohesionX.UserManagement.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDbRelation : Migration
+    public partial class initialSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,9 +21,8 @@ namespace CohesionX.UserManagement.Migrations
                     Email = table.Column<string>(type: "text", nullable: false),
                     Phone = table.Column<string>(type: "text", nullable: false),
                     IdNumber = table.Column<string>(type: "text", nullable: false),
-                    EloRating = table.Column<int>(type: "integer", nullable: false),
-                    PeakElo = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    Role = table.Column<string>(type: "text", nullable: false),
                     IsProfessional = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -65,7 +64,7 @@ namespace CohesionX.UserManagement.Migrations
                     OldElo = table.Column<int>(type: "integer", nullable: false),
                     NewElo = table.Column<int>(type: "integer", nullable: false),
                     Reason = table.Column<string>(type: "text", nullable: false),
-                    ComparisonId = table.Column<string>(type: "text", nullable: false),
+                    ComparisonId = table.Column<Guid>(type: "uuid", nullable: false),
                     JobId = table.Column<string>(type: "text", nullable: false),
                     Outcome = table.Column<string>(type: "text", nullable: false),
                     ComparisonType = table.Column<string>(type: "text", nullable: false),
@@ -75,6 +74,12 @@ namespace CohesionX.UserManagement.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_EloHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EloHistories_Users_ComparisonId",
+                        column: x => x.ComparisonId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_EloHistories_Users_UserId",
                         column: x => x.UserId,
@@ -115,13 +120,19 @@ namespace CohesionX.UserManagement.Migrations
                     JobId = table.Column<string>(type: "text", nullable: false),
                     Outcome = table.Column<string>(type: "text", nullable: false),
                     EloChange = table.Column<int>(type: "integer", nullable: false),
-                    CompletionId = table.Column<string>(type: "text", nullable: false),
+                    ComparisonId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_JobCompletions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_JobCompletions_Users_ComparisonId",
+                        column: x => x.ComparisonId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_JobCompletions_Users_UserId",
                         column: x => x.UserId,
@@ -207,6 +218,11 @@ namespace CohesionX.UserManagement.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_EloHistories_ComparisonId",
+                table: "EloHistories",
+                column: "ComparisonId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_EloHistories_UserId",
                 table: "EloHistories",
                 column: "UserId");
@@ -215,6 +231,11 @@ namespace CohesionX.UserManagement.Migrations
                 name: "IX_JobClaims_UserId",
                 table: "JobClaims",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_JobCompletions_ComparisonId",
+                table: "JobCompletions",
+                column: "ComparisonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JobCompletions_UserId",

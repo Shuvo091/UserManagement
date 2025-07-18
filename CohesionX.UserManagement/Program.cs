@@ -1,13 +1,9 @@
-using System.Text;
-using CohesionX.UserManagement.Modules.Users.Api;
 using CohesionX.UserManagement.Shared.Persistence;
 using CohesionX.UserManagement.Modules.Users.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System;
-using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;

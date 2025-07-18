@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CohesionX.UserManagement.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250717062804_AddDbRelation")]
-    partial class AddDbRelation
+    [Migration("20250718092747_initialSchema")]
+    partial class initialSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -69,9 +69,8 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ComparisonId")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("ComparisonId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ComparisonType")
                         .IsRequired()
@@ -102,6 +101,8 @@ namespace CohesionX.UserManagement.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ComparisonId");
 
                     b.HasIndex("UserId");
 
@@ -147,12 +148,11 @@ namespace CohesionX.UserManagement.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ComparisonId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CompletionId")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -173,6 +173,8 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ComparisonId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("JobCompletions");
@@ -186,9 +188,6 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EloRating")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -209,10 +208,11 @@ namespace CohesionX.UserManagement.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("PeakElo")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -353,11 +353,19 @@ namespace CohesionX.UserManagement.Migrations
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.EloHistory", b =>
                 {
+                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                        .WithMany()
+                        .HasForeignKey("ComparisonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("EloHistories")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Comparison");
 
                     b.Navigation("User");
                 });
@@ -375,11 +383,19 @@ namespace CohesionX.UserManagement.Migrations
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobCompletion", b =>
                 {
+                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                        .WithMany()
+                        .HasForeignKey("ComparisonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("JobCompletions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Comparison");
 
                     b.Navigation("User");
                 });

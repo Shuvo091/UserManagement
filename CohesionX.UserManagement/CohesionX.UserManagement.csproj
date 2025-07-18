@@ -29,7 +29,6 @@
     <Folder Include="Middleware\" />
     <Folder Include="Modules\Availability\" />
     <Folder Include="Modules\Admin\" />
-    <Folder Include="Modules\Users\Api\" />
     <Folder Include="Modules\Users\Config\" />
     <Folder Include="Modules\Users\Infrastructure\Redis\" />
   </ItemGroup>

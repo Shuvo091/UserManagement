@@ -1,5 +1,8 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Services;
+using CohesionX.UserManagement.Modules.Users.Domain.Entities;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 {
@@ -7,5 +10,6 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 	{
 		Task<RegistrationResult> RegisterUserAsync(UserRegisterDto dto, string? idPhotoPath);
 		Task<UserProfileDto> GetProfileAsync(Guid userId);
+		Task<List<UserWithEloAndDialectsDto>> GetUsersWithDialect();
 	}
 }

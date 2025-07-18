@@ -6,7 +6,7 @@ public class EloHistory
 	public int OldElo { get; set; }
 	public int NewElo { get; set; }
 	public string Reason { get; set; } = default!;
-	public string ComparisonId { get; set; } = default!;
+	public Guid ComparisonId { get; set; }
 	public string JobId { get; set; } = default!;
 	public string Outcome { get; set; } = default!;
 	public string ComparisonType { get; set; } = default!;
@@ -14,4 +14,5 @@ public class EloHistory
 	public DateTime ChangedAt { get; set; }
 
 	public User User { get; set; } = default!;
+	public User Comparison { get; set; } = default!;
 }

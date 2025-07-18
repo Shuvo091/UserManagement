@@ -7,9 +7,10 @@ public class JobCompletion
 	public string JobId { get; set; } = default!;
 	public string Outcome { get; set; } = default!;
 	public int EloChange { get; set; }
-	public string CompletionId { get; set; } = default!;
+	public Guid ComparisonId { get; set; } = default!;
 	public DateTime CompletedAt { get; set; }
 	public DateTime CreatedAt { get; set; }
 
 	public User User { get; set; } = default!;
+	public User Comparison { get; set; } = default!;
 }

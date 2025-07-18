@@ -3,7 +3,10 @@ using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
+using CohesionX.UserManagement.Modules.Users.Persistence;
 using CohesionX.UserManagement.Shared.Constants;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Services;
 
@@ -12,15 +15,18 @@ public class UserService : IUserService
 	private readonly IUserRepository _repo;
 	private readonly IMapper _mapper;
 	private readonly IPasswordHasher _passwordHasher;
+	private readonly IDistributedCache _cache;
 
 	public UserService(
 		IUserRepository repo,
 		IMapper mapper,
-		IPasswordHasher passwordHasher)
+		IPasswordHasher passwordHasher,
+		IDistributedCache cache)
 	{
 		_repo = repo;
 		_mapper = mapper;
 		_passwordHasher = passwordHasher;
+		_cache = cache;
 	}
 
 	public async Task<RegistrationResult> RegisterUserAsync(UserRegisterDto dto, string? idPhotoPath)
@@ -50,25 +56,17 @@ public class UserService : IUserService
 			LastName = dto.LastName,
 			Email = dto.Email,
 			Phone = dto.Phone,
-			PasswordHash = _passwordHasher.HashPassword(dto.Password),
-			SouthAfricanIdNumber = dto.IdNumber,
-			DateOfBirth = dto.DateOfBirth ?? new DateTime(),
-			IdPhotoPath = idPhotoPath,
-			ConsentToPIICollection = dto.ConsentToPIICollection,
-			Address = dto.ConsentToPIICollection ? dto.Address : null,
+			IdNumber = dto.IdNumber,
 			CreatedAt = DateTime.UtcNow,
 			UpdatedAt = DateTime.UtcNow,
-			EloRating = 1200,
-			PeakElo = 1200,
-			Status = "pending_verification",
-			UserRole = UserRole.Transcriber
+			Status = "pending_verification"
 		};
 
 		// Add dialect preferences
 		foreach (var dialect in dto.DialectPreferences)
 		{
 			user.Dialects.Add(new UserDialect {
-				DialectCode = dialect,
+				Dialect = dialect,
 				ProficiencyLevel = dto.LanguageExperience,
 				IsPrimary = false,
 				CreatedAt = DateTime.UtcNow
@@ -77,13 +75,7 @@ public class UserService : IUserService
 
 		// Attempt activation
 		var verificationRequired = new List<string>();
-		if (!user.TryActivateUser(out var activationReason))
-		{
-			if (user.IdPhotoPath == null)
-			{
-				verificationRequired.Add("id_document_upload");
-			}
-		}
+		verificationRequired.Add("id_document_upload");
 
 		await _repo.AddAsync(user);
 		await _repo.SaveChangesAsync();
@@ -103,6 +95,21 @@ public class UserService : IUserService
 
 		return _mapper.Map<UserProfileDto>(user);
 	}
+
+	public async Task<List<UserWithEloAndDialectsDto>> GetUsersWithDialect()
+	{
+		var users = await _repo.GetUsersWithEloAndDialectsAsync();
+		return users.Select(u => new UserWithEloAndDialectsDto
+		{
+			UserId = u.UserId,
+			DialectCodes = u.DialectCodes.Select(d => d).ToList(),
+			EloRating = u.EloRating,
+			PeakElo = u.PeakElo,
+			GamesPlayed = u.GamesPlayed,
+			IsProfessional = u.IsProfessional
+		}).ToList();
+	}
+
 }
 
 public class RegistrationResult
