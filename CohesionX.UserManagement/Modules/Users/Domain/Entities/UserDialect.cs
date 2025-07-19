@@ -1,7 +1,6 @@
 ﻿namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
-public class UserDialect
+public class UserDialect : BaseEntity
 {
-	public Guid Id { get; set; }
 	public Guid UserId { get; set; }
 	public string Dialect { get; set; } = default!;
 	public string ProficiencyLevel { get; set; } = default!;

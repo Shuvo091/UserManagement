@@ -13,20 +13,13 @@ namespace CohesionX.UserManagement.Controllers
 	public class UsersController : ControllerBase
 	{
 		private readonly IUserService _userService;
-		private readonly IFileStorageService _fileStorageService;
 		private readonly IRedisService _redisService;
-		private readonly IMapper _mapper;
-
 
 		public UsersController(IUserService userService
-			, IFileStorageService fileStorageService
-			, IRedisService redisService
-			, IMapper mapper)
+			, IRedisService redisService)
 		{
 			_userService = userService;
-			_fileStorageService = fileStorageService;
 			_redisService = redisService;
-			_mapper = mapper;
 		}
 
 		[HttpPost("register")]
@@ -94,33 +87,36 @@ namespace CohesionX.UserManagement.Controllers
 			var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
 			if (!users.Any()) return Ok(availableUsersResp);
 
-			var cacheMap = await _redisService.GetBulkAvailabilityAndEloAsync(users.Select(u => u.Id));
-
+			var cacheMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
+			var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 			var availableUsers = users
-				.Where(u => cacheMap.AvailabilityMap.ContainsKey(u.Id)
-						&& cacheMap.AvailabilityMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
+				.Where(u => cacheMap.ContainsKey(u.Id)
+						&& cacheMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
 				.Select(u =>
 				{
-					var availability = cacheMap.AvailabilityMap.ContainsKey(u.Id)
-						? cacheMap.AvailabilityMap[u.Id]
+					var availability = cacheMap.ContainsKey(u.Id)
+						? cacheMap[u.Id]
 						: null;
 
-					var eloPerformance = cacheMap.EloMap.ContainsKey(u.Id)
-						? cacheMap.EloMap[u.Id]
-						: null;
+					var eloChanged = u.EloHistories.Count != 0 && u.Statistics != null
+										? u.Statistics.CurrentElo - u.EloHistories.OrderBy(eh => eh.ChangedAt).First().NewElo
+										: 0;
+					var prefix = "+";
+					if (eloChanged < 0) prefix = "-";
+					var trend = $"{prefix}{Math.Abs(eloChanged)}_Over_7_Days";
 
 					return new AvailableUsersDto
 					{
 						UserId = u.Id,
-						EloRating = eloPerformance?.CurrentElo,
-						PeakElo = eloPerformance?.PeakElo,
+						EloRating = u.Statistics?.CurrentElo,
+						PeakElo = u.Statistics?.PeakElo,
 						DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
 						CurrentWorkload = availability?.CurrentWorkload,
-						RecentPerformance = eloPerformance?.RecentTrend,
-						GamesPlayed = eloPerformance?.GamesPlayed,
+						RecentPerformance = trend,
+						GamesPlayed = u.Statistics?.GamesPlayed,
 						Role = u.Role,
 						BypassQaComparison = u.Role == UserRole.PROFESSIONAL,
-						LastActive = eloPerformance?.LastJobCompleted
+						LastActive = u.Statistics?.LastCalculated
 					};
 				})
 				.ToList();

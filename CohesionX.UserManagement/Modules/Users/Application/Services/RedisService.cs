@@ -105,21 +105,17 @@ public class RedisService : IRedisService
 		await _cache.SetStringAsync(GetUserEloKey(userId), json, GetTtlOptions(_userEloTtl));
 	}
 
-	public async Task<(Dictionary<Guid, UserAvailabilityRedisDto> AvailabilityMap, Dictionary<Guid, UserEloDto> EloMap)>
-		GetBulkAvailabilityAndEloAsync(IEnumerable<Guid> userIds)
+	public async Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds)
 	{
 		var idList = userIds.ToList();
 		var availabilityKeys = idList.Select(id => (object)GetAvailabilityKey(id)).ToArray();
-		var eloKeys = idList.Select(id => (object)GetUserEloKey(id)).ToArray();
 
 		// Start all Redis fetches
 		var availabilityTasks = availabilityKeys.Select(k => _cache.GetStringAsync((string)k)).ToList();
-		var eloTasks = eloKeys.Select(k => _cache.GetStringAsync((string)k)).ToList();
 
-		await Task.WhenAll(availabilityTasks.Concat(eloTasks));
+		await Task.WhenAll(availabilityTasks);
 
 		var availabilityMap = new Dictionary<Guid, UserAvailabilityRedisDto>();
-		var eloMap = new Dictionary<Guid, UserEloDto>();
 
 		for (int i = 0; i < idList.Count; i++)
 		{
@@ -133,18 +129,9 @@ public class RedisService : IRedisService
 				if (availability != null)
 					availabilityMap[userId] = availability;
 			}
-
-			// Elo
-			var eloJson = eloTasks[i].Result;
-			if (!string.IsNullOrWhiteSpace(eloJson))
-			{
-				var elo = JsonSerializer.Deserialize<UserEloDto>(eloJson);
-				if (elo != null)
-					eloMap[userId] = elo;
-			}
 		}
 
-		return (availabilityMap, eloMap);
+		return availabilityMap;
 	}
 
 }

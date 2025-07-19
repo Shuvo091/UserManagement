@@ -1,3 +1,5 @@
+using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CohesionX.UserManagement.Controllers
@@ -6,17 +8,24 @@ namespace CohesionX.UserManagement.Controllers
     [Route("api/v1/elo-update")]
     public class EloUpdateController : ControllerBase
     {
-        [HttpPost]
-        public IActionResult EloUpdate([FromBody] object eloUpdateRequest)
+		private readonly IEloService _eloService;
+		public EloUpdateController(IEloService eloService)
+		{
+			_eloService = eloService;
+		}
+		[HttpPost]
+        public async Task<IActionResult> EloUpdate([FromBody] EloUpdateRequest eloUpdateRequest)
         {
-            // TODO: Implement elo update logic
-            return Ok(new
+            try
             {
-                workflowRequestId = Guid.NewGuid(),
-                eloUpdatesApplied = new object[] { },
-                comparisonId = Guid.NewGuid(),
-                updatedAt = DateTime.UtcNow
-            });
+				var resp = await _eloService.ApplyEloUpdatesAsync(eloUpdateRequest);
+				return Ok(resp);
+			}
+            catch(Exception ex)
+			{
+				// Log the exception (not shown here for brevity)
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+			}
         }
     }
 } 

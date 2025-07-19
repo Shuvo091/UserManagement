@@ -1,9 +1,5 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
-using CohesionX.UserManagement.Modules.Users.Application.Services;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using Microsoft.Extensions.Caching.Distributed;
-using System.Collections.Generic;
-using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 {
