@@ -3,6 +3,7 @@ using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
+using CohesionX.UserManagement.Modules.Users.Persistence;
 using CohesionX.UserManagement.Shared.Persistence;
 
 namespace CohesionX.UserManagement.Modules.Elo.Application.Services;
@@ -93,6 +94,90 @@ public class EloService : IEloService
 		return eloUpdateResp;
 	}
 
+	public async Task<string> GetEloTrend(Guid userId, int days)
+	{
+		var cutOffDate = DateTime.UtcNow.AddDays(-days);
+
+		var recentHistory = await _repo.FindAsync(
+			eh => eh.UserId == userId && eh.ChangedAt >= cutOffDate
+		);
+
+		if (recentHistory == null || recentHistory.Count < 2)
+			return $"0_over_{days}_days";
+
+		var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().NewElo;
+		var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
+
+		var diff = latest - earliest;
+		var sign = diff >= 0 ? "+" : "-";
+
+		return $"{sign}{Math.Abs(diff)}_over_{days}_days";
+	}
+
+	public string GetEloTrend(List<EloHistory> eloHistories, int days)
+	{
+		var cutOffDate = DateTime.UtcNow.AddDays(-days);
+
+		var recentHistory = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
+
+		if (recentHistory == null || recentHistory.Count < 2)
+			return $"0_over_{days}_days";
+
+		var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().OldElo;
+		var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
+
+		var diff = latest - earliest;
+		var sign = diff >= 0 ? "+" : "-";
+
+		return $"{sign}{Math.Abs(diff)}_over_{days}_days";
+	}
+
+	public async Task<Dictionary<Guid, string>> BulkEloTrendAsync(List<Guid> userIds, int days)
+	{
+		var cutOffDate = DateTime.UtcNow.AddDays(-days);
+
+		var recentHistories = await _repo.FindAsync(
+			eh => userIds.Contains(eh.UserId) && eh.ChangedAt >= cutOffDate
+		);
+
+		var grouped = recentHistories
+			.GroupBy(eh => eh.UserId)
+			.ToDictionary(
+				g => g.Key,
+				g =>
+				{
+					var ordered = g.OrderBy(e => e.ChangedAt).ToList();
+					if (ordered.Count < 2)
+						return $"0_over_{days}_days";
+
+					var earliest = ordered.First().NewElo;
+					var latest = ordered.Last().NewElo;
+					var diff = latest - earliest;
+					var sign = diff >= 0 ? "+" : "-";
+					return $"{sign}{Math.Abs(diff)}_over_{days}_days";
+				}
+			);
+
+		// Handle users with no history
+		foreach (var userId in userIds)
+		{
+			if (!grouped.ContainsKey(userId))
+			{
+				grouped[userId] = $"0_over_{days}_days";
+			}
+		}
+
+		return grouped;
+	}
+
+
+
+	public async Task<EloHistoryDto[]> GetHistoryAsync(Guid userId)
+	{
+		var history = await _repo.GetByUserIdAsync(userId);
+		return _mapper.Map<EloHistoryDto[]>(history);
+	}
+
 	private int CalculateKFactor(int gamesPlayed)
 	{
 		return gamesPlayed switch
@@ -103,61 +188,17 @@ public class EloService : IEloService
 		};
 	}
 
-	//public async Task<EloResultDto[]> ApplyEloUpdatesAsync(EloUpdateRequestDto req)
-	//{
-	//	var results = new List<EloResultDto>();
-
-	//	foreach (var change in req.RecommendedEloChanges)
-	//	{
-	//		var user = await _repo.GetUserByIdAsync(change.TranscriberId);
-	//		if (user == null) continue;
-
-	//		int k = user.GamesPlayed switch
-	//		{
-	//			< 30 => 32,
-	//			< 100 => 24,
-	//			_ => 16
-	//		};
-
-	//		double expected = 1.0 / (1 + Math.Pow(10, (change.OpponentElo - user.EloRating) / 400.0));
-	//		int newElo = (int)Math.Round(user.EloRating + k * ((change.Outcome == "win" ? 1 : 0) - expected));
-
-	//		var eloHistory = new EloHistory
-	//		{
-	//			UserId = user.Id,
-	//			OldElo = user.EloRating,
-	//			NewElo = newElo,
-	//			Reason = req.ComparisonMetadata.QaMethod,
-	//			ComparisonId = req.ComparisonMetadata.ComparisonId,
-	//			JobId = req.ComparisonMetadata.JobId,
-	//			Outcome = change.Outcome,
-	//			ComparisonType = req.ComparisonMetadata.ComparisonType,
-	//			KFactorUsed = k,
-	//			ChangedAt = DateTime.UtcNow
-	//		};
-
-	//		await _repo.AddEloHistoryAsync(eloHistory);
-
-	//		user.EloRating = newElo;
-	//		user.GamesPlayed++;
-
-	//		results.Add(new EloResultDto
-	//		{
-	//			TranscriberId = user.Id,
-	//			OldElo = change.OldElo,
-	//			NewElo = newElo,
-	//			EloChange = newElo - change.OldElo,
-	//			Outcome = change.Outcome
-	//		});
-	//	}
-
-	//	await _repo.SaveChangesAsync();
-	//	return results.ToArray();
-	//}
-
-	public async Task<EloHistoryDto[]> GetHistoryAsync(Guid userId)
+	public double GetWinRate(List<EloHistory> eloHistories, int? days = null)
 	{
-		var history = await _repo.GetByUserIdAsync(userId);
-		return _mapper.Map<EloHistoryDto[]>(history);
+		if (days.HasValue)
+		{
+			var cutOffDate = DateTime.UtcNow.AddDays(-days.Value);
+			eloHistories = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
+		}
+		int total = eloHistories.Count;
+		if (total == 0) return 0.00;
+		int wins = eloHistories.Count(eh => eh.Outcome == "win");
+		double winRate = (double)wins / total * 100;
+		return winRate;
 	}
 }

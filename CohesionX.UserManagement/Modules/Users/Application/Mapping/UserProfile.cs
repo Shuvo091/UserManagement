@@ -9,10 +9,6 @@ public class UserProfileMapping : Profile
 {
 	public UserProfileMapping()
 	{
-		CreateMap<User, UserProfileDto>()
-			.ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
-			.ForMember(dest => dest.IsVerified, opt => opt.MapFrom(src =>
-				src.VerificationRecords.Any(v => v.Status == "Verified")));
 
 		CreateMap<User, AvailableUsersDto>()
 			.ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))

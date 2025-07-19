@@ -13,12 +13,15 @@ namespace CohesionX.UserManagement.Controllers
 	public class UsersController : ControllerBase
 	{
 		private readonly IUserService _userService;
+		private readonly IEloService _eloService;
 		private readonly IRedisService _redisService;
 
 		public UsersController(IUserService userService
+			, IEloService eloService
 			, IRedisService redisService)
 		{
 			_userService = userService;
+			_eloService = eloService;
 			_redisService = redisService;
 		}
 
@@ -88,7 +91,7 @@ namespace CohesionX.UserManagement.Controllers
 			if (!users.Any()) return Ok(availableUsersResp);
 
 			var cacheMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
-			var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+			var trendMap = await _eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
 			var availableUsers = users
 				.Where(u => cacheMap.ContainsKey(u.Id)
 						&& cacheMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
@@ -98,13 +101,6 @@ namespace CohesionX.UserManagement.Controllers
 						? cacheMap[u.Id]
 						: null;
 
-					var eloChanged = u.EloHistories.Count != 0 && u.Statistics != null
-										? u.Statistics.CurrentElo - u.EloHistories.OrderBy(eh => eh.ChangedAt).First().NewElo
-										: 0;
-					var prefix = "+";
-					if (eloChanged < 0) prefix = "-";
-					var trend = $"{prefix}{Math.Abs(eloChanged)}_Over_7_Days";
-
 					return new AvailableUsersDto
 					{
 						UserId = u.Id,
@@ -112,7 +108,7 @@ namespace CohesionX.UserManagement.Controllers
 						PeakElo = u.Statistics?.PeakElo,
 						DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
 						CurrentWorkload = availability?.CurrentWorkload,
-						RecentPerformance = trend,
+						RecentPerformance = trendMap[u.Id],
 						GamesPlayed = u.Statistics?.GamesPlayed,
 						Role = u.Role,
 						BypassQaComparison = u.Role == UserRole.PROFESSIONAL,
@@ -175,9 +171,16 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpGet("{userId}/profile")]
 		public async Task<IActionResult> GetProfile([FromRoute] Guid userId)
 		{
-			// TODO: Replace with actual service call
-			var profile = await _userService.GetProfileAsync(userId);
-			return Ok(profile);
+			try
+			{
+				var profile = await _userService.GetProfileAsync(userId);
+				return Ok(profile);
+			}
+			catch(Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpGet("{userId}/elo-history")]

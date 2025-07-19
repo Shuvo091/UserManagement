@@ -12,21 +12,34 @@ public class UserService : IUserService
 {
 	private readonly IUserRepository _repo;
 	private readonly IAuditLogRepository _auditLogRepo;
+	private readonly IEloService _eloService;
 	private readonly IMapper _mapper;
 	private readonly int _initElo;
+	private readonly int _minEloRequiredForPro;
+	private readonly int _minJobsRequiredForPro;
 
 	public UserService(
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
 		IMapper mapper,
-		IConfiguration configuration)
+		IConfiguration configuration,
+		IEloService eloService)
 	{
 		_repo = repo;
 		_auditLogRepo = auditLogRepo;
 		_mapper = mapper;
+		_eloService = eloService;
 		var initEloStr = configuration["INITIAL_ELO_RATING"];
 		if (!int.TryParse(initEloStr, out var initElo)) initElo = 360;
 		_initElo = initElo;
+
+		var initMinEloProStr = configuration["MIN_ELO_REQUIRED_FOR_PRO"];
+		if (!int.TryParse(initMinEloProStr, out var minElo)) minElo = 1600;
+		_minEloRequiredForPro = minElo;
+
+		var initMinJobsProStr = configuration["MIN_JOBS_REQUIRED_FOR_PRO"];
+		if (!int.TryParse(initMinJobsProStr, out var minJobs)) minJobs = 500;
+		_minJobsRequiredForPro = minJobs;
 	}
 
 	public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
@@ -110,8 +123,67 @@ public class UserService : IUserService
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
 		if (user == null) throw new KeyNotFoundException("User not found");
 
-		return _mapper.Map<UserProfileDto>(user);
+		var stats = user.Statistics;
+		var eloHistories = user.EloHistories;
+		var dialects = user.Dialects;
+		var jobCompletions = user.JobCompletions;
+
+		var currentElo = stats?.CurrentElo ?? 0;
+		var totalJobs = stats?.TotalJobs ?? 0;
+
+		var missingCriteria = GetMissingCriteria(currentElo, totalJobs);
+		var eligible = missingCriteria.Count == 0;
+
+		var eloTrend7 = _eloService.GetEloTrend(eloHistories.ToList(), 7);
+		var eloTrend30 = _eloService.GetEloTrend(eloHistories.ToList(), 30);
+		var winRate = _eloService.GetWinRate(eloHistories.ToList());
+
+		var jobsLast30Days = jobCompletions.Count(jc => jc.CompletedAt >= DateTime.UtcNow.AddDays(-30));
+
+		var dto = new UserProfileDto
+		{
+			FirstName = user.FirstName,
+			LastName = user.LastName,
+			EloRating = currentElo,
+			PeakElo = stats?.PeakElo ?? 0,
+			Status = user.Status,
+			RegisteredAt = user.CreatedAt,
+			IsProfessional = user.Role == UserRole.PROFESSIONAL,
+			ProfessionalEligibility = new ProfessionalEligibilityDto
+			{
+				Eligible = eligible,
+				MissingCriteria = missingCriteria,
+				Progress = new ProfessionalProgressDto
+				{
+					EloProgress = $"{currentElo}/{_minEloRequiredForPro}",
+					JobsProgress = $"{totalJobs}/{_minJobsRequiredForPro}"
+				}
+			},
+			Statistics = new UserStatisticsDto
+			{
+				TotalJobsCompleted = totalJobs,
+				GamesPlayed = stats?.GamesPlayed ?? 0,
+				EloTrend = eloTrend7,
+				DialectExpertise = dialects.Select(d => d.Dialect).ToList(),
+				WinRate = winRate,
+				Last30Days = new Last30DaysStatsDto
+				{
+					JobsCompleted = jobsLast30Days,
+					EloChange = eloTrend30,
+					Earnings = 0 // TODO: Calculate
+				}
+			},
+			Preferences = new UserPreferencesDto
+			{
+				MaxConcurrentJobs = 3,
+				DialectPreferences = new List<string> { "western_cape" },
+				PreferredJobTypes = new List<string> { "conference_calls", "interviews" }
+			}
+		};
+
+		return dto;
 	}
+
 
 	public async Task<User> GetUserAsync(Guid userId)
 	{
@@ -167,5 +239,14 @@ public class UserService : IUserService
 		var user = await _repo.GetUserByIdAsync(userId);
 		if(user == null) return false;
 		return user.IdNumber == idNumber;
+	}
+
+	private List<string> GetMissingCriteria(int elo, int totalJobs)
+	{
+		List<string> missingCriteria = [];
+		if (elo < _minEloRequiredForPro) missingCriteria.Add("elo_rating");
+		if (totalJobs < _minJobsRequiredForPro) missingCriteria.Add("total_jobs");
+
+		return missingCriteria;
 	}
 }

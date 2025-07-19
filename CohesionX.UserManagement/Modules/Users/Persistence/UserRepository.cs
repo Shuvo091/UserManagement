@@ -66,12 +66,9 @@ public class UserRepository : Repository<User>, IUserRepository
 
 	public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
 	{
-		var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
-
 		var query = _context.Users
 			.Include(u => u.Dialects)
 			.Include(u => u.Statistics)
-			.Include(u => u.EloHistories.Where(eh => eh.ChangedAt >= sevenDaysAgo))
 			.AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(dialect))
