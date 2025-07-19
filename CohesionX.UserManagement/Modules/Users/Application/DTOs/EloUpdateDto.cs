@@ -1,4 +1,4 @@
-﻿namespace CohesionX.UserManagement.Modules.Users.Application.DTOs;
+namespace CohesionX.UserManagement.Modules.Users.Application.DTOs;
 
 public class EloUpdateRequest
 {
