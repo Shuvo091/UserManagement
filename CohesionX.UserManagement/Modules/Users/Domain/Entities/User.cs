@@ -2,10 +2,9 @@
 
 namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
 
-public class User
+public class User : BaseEntity
 {
 	// Core Properties
-	public Guid Id { get; set; }
 	public string FirstName { get; set; } = default!;
 	public string LastName { get; set; } = default!;
 	public string Email { get; set; } = default!;

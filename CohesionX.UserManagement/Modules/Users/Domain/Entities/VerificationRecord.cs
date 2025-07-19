@@ -1,8 +1,7 @@
 ﻿namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
 
-public class VerificationRecord
+public class VerificationRecord : BaseEntity
 {
-	public Guid Id { get; set; }
 	public Guid UserId { get; set; }
 	public string VerificationType { get; set; } = default!;
 	public string Status { get; set; } = default!;

@@ -1,7 +1,6 @@
 ﻿namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
-public class EloHistory
+public class EloHistory : BaseEntity
 {
-	public Guid Id { get; set; }
 	public Guid UserId { get; set; }
 	public int OldElo { get; set; }
 	public int NewElo { get; set; }

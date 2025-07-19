@@ -145,7 +145,7 @@ public class UserService : IUserService
 			CreatedAt = DateTime.UtcNow
 		};
 		user.VerificationRecords.Add(verificationRecord);
-		await _repo.UpdateAsync(user);
+		_repo.Update(user);
 
 		var response = new VerificationResponse
 		{

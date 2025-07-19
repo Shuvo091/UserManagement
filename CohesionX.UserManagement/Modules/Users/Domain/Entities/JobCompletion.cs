@@ -1,8 +1,7 @@
 ﻿namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
 
-public class JobCompletion
+public class JobCompletion : BaseEntity
 {
-	public Guid Id { get; set; }
 	public Guid UserId { get; set; }
 	public string JobId { get; set; } = default!;
 	public string Outcome { get; set; } = default!;
