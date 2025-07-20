@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Builder;
+using SharedLibrary.Cache.ServiceCollectionExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -16,12 +16,6 @@ services.AddControllers();
 // PostgreSQL DbContext
 services.AddDbContext<AppDbContext>(options =>
 	options.UseNpgsql(config["DB_CONNECTION_STRING:db-secrets"]));
-
-// Redis (optional for availability cache)
-services.AddStackExchangeRedisCache(options =>
-{
-	options.Configuration = config["REDIS_CONNECTION_STRING:redis-secrets"];
-});
 
 // JWT Authentication with Role-based Claims
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -98,6 +92,7 @@ services.AddSwaggerGen(options =>
 
 
 // Register modules
+services.AddRedisCache(config);
 services.RegisterUserModule();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 

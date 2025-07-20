@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35707.178 d17.12
+VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CohesionX.UserManagement", "CohesionX.UserManagement\CohesionX.UserManagement.csproj", "{86914DB9-BBB9-4414-9D71-EBD46E871DCD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedLibrary", "..\Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj", "{A937FD98-2AC4-44EF-8CDC-7DD66D581436}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{86914DB9-BBB9-4414-9D71-EBD46E871DCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{86914DB9-BBB9-4414-9D71-EBD46E871DCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{86914DB9-BBB9-4414-9D71-EBD46E871DCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A937FD98-2AC4-44EF-8CDC-7DD66D581436}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A937FD98-2AC4-44EF-8CDC-7DD66D581436}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A937FD98-2AC4-44EF-8CDC-7DD66D581436}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A937FD98-2AC4-44EF-8CDC-7DD66D581436}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

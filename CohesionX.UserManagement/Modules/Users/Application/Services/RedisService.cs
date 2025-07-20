@@ -1,20 +1,19 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
+using SharedLibrary.Cache.Services.Interfaces;
 using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Services;
 
 public class RedisService : IRedisService
 {
-	private readonly IDistributedCache _cache;
+	private readonly ICacheService _cache;
 	private readonly TimeSpan _availabilityTtl;
 	private readonly TimeSpan _jobClaimLockTtl = TimeSpan.FromSeconds(30);
 	private readonly TimeSpan _userClaimsTtl = TimeSpan.FromHours(8);
 	private readonly TimeSpan _userEloTtl = TimeSpan.FromHours(1);
 
-	public RedisService(IDistributedCache cache, IConfiguration configuration)
+	public RedisService(ICacheService cache, IConfiguration configuration)
 	{
 		_cache = cache;
 
@@ -26,12 +25,6 @@ public class RedisService : IRedisService
 		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutes);
 	}
 
-	private DistributedCacheEntryOptions GetTtlOptions(TimeSpan ttl) =>
-		new DistributedCacheEntryOptions
-		{
-			AbsoluteExpirationRelativeToNow = ttl
-		};
-
 	private string GetAvailabilityKey(Guid userId) => $"user:availability:{userId}";
 	private string GetJobClaimLockKey(string jobId) => $"job:claim:lock:{jobId}";
 	private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
@@ -39,7 +32,7 @@ public class RedisService : IRedisService
 
 	public async Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId)
 	{
-		var json = await _cache.GetStringAsync(GetAvailabilityKey(userId));
+		var json = await _cache.GetAsync<string>(GetAvailabilityKey(userId));
 		if (string.IsNullOrWhiteSpace(json)) return null;
 		return JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
 	}
@@ -47,15 +40,15 @@ public class RedisService : IRedisService
 	public async Task SetAvailabilityAsync(Guid userId, UserAvailabilityRedisDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
-		await _cache.SetStringAsync(GetAvailabilityKey(userId), json, GetTtlOptions(_availabilityTtl));
+		await _cache.SetAsync<string>(GetAvailabilityKey(userId), json, _availabilityTtl);
 	}
 
 	public async Task<bool> TryClaimJobAsync(string jobId, Guid userId)
 	{
 		var key = GetJobClaimLockKey(jobId);
-		var existing = await _cache.GetStringAsync(key);
+		var existing = await _cache.GetAsync<string>(key);
 		if (!string.IsNullOrEmpty(existing)) return false;
-		await _cache.SetStringAsync(key, $"{userId}_claiming_{jobId}", GetTtlOptions(_jobClaimLockTtl));
+		await _cache.SetAsync(key, $"{userId}_claiming_{jobId}", _jobClaimLockTtl);
 		return true;
 	}
 
@@ -66,7 +59,7 @@ public class RedisService : IRedisService
 
 	public async Task<List<string>> GetUserClaimsAsync(Guid userId)
 	{
-		var json = await _cache.GetStringAsync(GetUserClaimsKey(userId));
+		var json = await _cache.GetAsync<string>(GetUserClaimsKey(userId));
 		if (string.IsNullOrWhiteSpace(json)) return new List<string>();
 		var jobs = JsonSerializer.Deserialize<List<string>>(json);
 		return jobs ?? new List<string>();
@@ -78,7 +71,7 @@ public class RedisService : IRedisService
 		var existing = await GetUserClaimsAsync(userId);
 		if (!existing.Contains(jobId)) existing.Add(jobId);
 		var json = JsonSerializer.Serialize(existing);
-		await _cache.SetStringAsync(key, json, GetTtlOptions(_userClaimsTtl));
+		await _cache.SetAsync<string>(key, json, _userClaimsTtl);
 	}
 
 	public async Task RemoveUserClaimAsync(Guid userId, string jobId)
@@ -89,20 +82,20 @@ public class RedisService : IRedisService
 		{
 			existing.Remove(jobId);
 			var json = JsonSerializer.Serialize(existing);
-			await _cache.SetStringAsync(key, json, GetTtlOptions(_userClaimsTtl));
+			await _cache.SetAsync<string>(key, json, _userClaimsTtl);
 		}
 	}
 
 	public async Task<UserEloDto?> GetUserEloAsync(Guid userId)
 	{
-		var json = await _cache.GetStringAsync(GetUserEloKey(userId));
+		var json = await _cache.GetAsync<string>(GetUserEloKey(userId));
 		return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<UserEloDto>(json);
 	}
 
 	public async Task SetUserEloAsync(Guid userId, UserEloDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
-		await _cache.SetStringAsync(GetUserEloKey(userId), json, GetTtlOptions(_userEloTtl));
+		await _cache.SetAsync<string>(GetUserEloKey(userId), json, _userEloTtl);
 	}
 
 	public async Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds)
@@ -111,7 +104,7 @@ public class RedisService : IRedisService
 		var availabilityKeys = idList.Select(id => (object)GetAvailabilityKey(id)).ToArray();
 
 		// Start all Redis fetches
-		var availabilityTasks = availabilityKeys.Select(k => _cache.GetStringAsync((string)k)).ToList();
+		var availabilityTasks = availabilityKeys.Select(k => _cache.GetAsync<string>((string)k)).ToList();
 
 		await Task.WhenAll(availabilityTasks);
 

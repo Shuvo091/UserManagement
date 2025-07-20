@@ -34,4 +34,8 @@
     <Folder Include="Modules\Users\Infrastructure\Redis\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj" />
+  </ItemGroup>
+
 </Project>
