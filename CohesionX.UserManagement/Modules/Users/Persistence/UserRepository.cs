@@ -34,6 +34,22 @@ public class UserRepository : Repository<User>, IUserRepository
 			.FirstOrDefaultAsync(u => u.Id == userId);
 	}
 
+	public async Task<User?> GetUserByEmailAsync(string email, bool includeRelated = false)
+	{
+		if (!includeRelated)
+			return await _context.Users.Where(u => u.Email == email).FirstOrDefaultAsync();
+
+		return await _context.Users
+			.Include(u => u.Dialects)
+			.Include(u => u.Statistics)
+			.Include(u => u.EloHistories)
+			.Include(u => u.JobCompletions)
+			.Include(u => u.JobClaims)
+			.Include(u => u.AuditLogs)
+			.Include(u => u.VerificationRecords)
+			.FirstOrDefaultAsync(u => u.Email == email);
+	}
+
 	public Task<List<User>> GetAllUsers(bool includeRelated = false)
 	{
 		if (!includeRelated) return _context.Users.AsNoTracking().ToListAsync();

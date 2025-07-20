@@ -4,6 +4,7 @@ using CohesionX.UserManagement.Modules.Users.Application.Services;
 using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Persistence;
 using CohesionX.UserManagement.Shared.Persistence;
+using IdentityServer4.Validation;
 
 namespace CohesionX.UserManagement.Modules.Users.Config;
 
@@ -26,6 +27,8 @@ public static class UserModuleInstaller
 
 		services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 		services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+		services.AddTransient<IResourceOwnerPasswordValidator, ResourceOwnerPasswordValidator>();
 		return services;
 	}
 }

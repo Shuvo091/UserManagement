@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Modules.Users.Domain.Constants;
 using CohesionX.UserManagement.Modules.Users.Application.Enums;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CohesionX.UserManagement.Controllers
 {
+	//[Authorize(Policy = "ApiScope")]
 	[ApiController]
 	[Route("api/v1/users")]
 	[IgnoreAntiforgeryToken]
@@ -25,15 +27,16 @@ namespace CohesionX.UserManagement.Controllers
 			_redisService = redisService;
 		}
 
+		[AllowAnonymous]
 		[HttpPost("register")]
-		public async Task<IActionResult> Register([FromForm] UserRegisterRequest dto)
+		public async Task<IActionResult> Register([FromBody] UserRegisterRequest dto)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState);
 
 			var result = await _userService.RegisterUserAsync(dto);
 
-			return Created($"/api/v1/users/{result.UserId}/profile", result);
+			return CreatedAtAction(nameof(GetProfile), new { userId = result.UserId }, result);
 		}
 
 		[HttpPost("{userId}/verify")]

@@ -14,6 +14,7 @@ public class UserService : IUserService
 	private readonly IAuditLogRepository _auditLogRepo;
 	private readonly IEloService _eloService;
 	private readonly IMapper _mapper;
+	private readonly IPasswordHasher _passwordHasher;
 	private readonly int _initElo;
 	private readonly int _minEloRequiredForPro;
 	private readonly int _minJobsRequiredForPro;
@@ -22,12 +23,14 @@ public class UserService : IUserService
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
 		IMapper mapper,
+		IPasswordHasher passwordHasher,
 		IConfiguration configuration,
 		IEloService eloService)
 	{
 		_repo = repo;
 		_auditLogRepo = auditLogRepo;
 		_mapper = mapper;
+		_passwordHasher = passwordHasher;
 		_eloService = eloService;
 		var initEloStr = configuration["INITIAL_ELO_RATING"];
 		if (!int.TryParse(initEloStr, out var initElo)) initElo = 360;
@@ -48,8 +51,7 @@ public class UserService : IUserService
 		if (string.IsNullOrWhiteSpace(dto.FirstName) ||
 			string.IsNullOrWhiteSpace(dto.LastName) ||
 			string.IsNullOrWhiteSpace(dto.Email) ||
-			string.IsNullOrWhiteSpace(dto.Phone) ||
-			string.IsNullOrWhiteSpace(dto.IdNumber))
+			string.IsNullOrWhiteSpace(dto.Password))
 		{
 			throw new ArgumentException("All required fields must be provided");
 		}
@@ -67,6 +69,8 @@ public class UserService : IUserService
 			FirstName = dto.FirstName,
 			LastName = dto.LastName,
 			Email = dto.Email,
+			UserName = dto.Email,
+			PasswordHash = _passwordHasher.HashPassword(dto.Password),
 			Phone = dto.Phone,
 			IdNumber = dto.IdNumber,
 			CreatedAt = DateTime.UtcNow,
@@ -77,15 +81,18 @@ public class UserService : IUserService
 		};
 
 		// Add dialect preferences
-		foreach (var dialect in dto.DialectPreferences)
+		if(dto.DialectPreferences != null && dto.DialectPreferences.Any())
 		{
-			user.Dialects.Add(new UserDialect
+			foreach (var dialect in dto.DialectPreferences)
 			{
-				Dialect = dialect,
-				ProficiencyLevel = dto.LanguageExperience,
-				IsPrimary = false,
-				CreatedAt = DateTime.UtcNow
-			});
+				user.Dialects.Add(new UserDialect
+				{
+					Dialect = dialect,
+					ProficiencyLevel = dto.LanguageExperience ?? "",
+					IsPrimary = false,
+					CreatedAt = DateTime.UtcNow
+				});
+			}
 		}
 
 		user.Statistics = new UserStatistics
@@ -188,6 +195,14 @@ public class UserService : IUserService
 	public async Task<User> GetUserAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null) throw new KeyNotFoundException("User not found");
+
+		return user;
+	}
+
+	public async Task<User> GetUserByEmailAsync(string email)
+	{
+		var user = await _repo.GetUserByEmailAsync(email);
 		if (user == null) throw new KeyNotFoundException("User not found");
 
 		return user;
