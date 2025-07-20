@@ -187,19 +187,18 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpGet("{userId}/elo-history")]
-		public IActionResult GetEloHistory([FromRoute] Guid userId)
+		public async Task<IActionResult> GetEloHistory([FromRoute] Guid userId)
 		{
-			// TODO: Implement elo history logic
-			return Ok(new
+			try
 			{
-				userId,
-				currentElo = 1200,
-				peakElo = 1200,
-				initialElo = 1200,
-				gamesPlayed = 0,
-				eloHistory = new object[] { },
-				trends = new { last7Days = "+0", last30Days = "+0", winRate = 0.0, averageOpponentElo = 1200 }
-			});
+				var profile = await _eloService.GetEloHistoryAsync(userId);
+				return Ok(profile);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpPost("{userId}/claim-job")]

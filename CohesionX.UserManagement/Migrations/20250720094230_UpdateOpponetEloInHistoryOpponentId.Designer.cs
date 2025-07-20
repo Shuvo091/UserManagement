@@ -3,6 +3,7 @@ using System;
 using CohesionX.UserManagement.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CohesionX.UserManagement.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250720094230_UpdateOpponetEloInHistoryOpponentId")]
+    partial class UpdateOpponetEloInHistoryOpponentId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,6 +106,9 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("UserId1")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ComparisonId");
@@ -110,6 +116,8 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("OpponentId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
 
                     b.ToTable("EloHistories");
                 });
@@ -377,10 +385,14 @@ namespace CohesionX.UserManagement.Migrations
                         .IsRequired();
 
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
-                        .WithMany("EloHistories")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", null)
+                        .WithMany("EloHistories")
+                        .HasForeignKey("UserId1");
 
                     b.Navigation("Comparison");
 

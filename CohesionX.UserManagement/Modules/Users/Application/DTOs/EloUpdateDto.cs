@@ -16,6 +16,7 @@ public class RecommendedEloChangeDto
 	public int RecommendedChange { get; set; }
 	public string? ComparisonOutcome { get; set; }
 	public int OpponentElo { get; set; }
+	public Guid OpponentId { get; set; }
 }
 
 public class ComparisonMetadataDto

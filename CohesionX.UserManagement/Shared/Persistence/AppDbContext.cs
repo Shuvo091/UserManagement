@@ -34,5 +34,23 @@ public class AppDbContext : DbContext
 			entity.HasMany(u => u.AuditLogs).WithOne(a => a.User).HasForeignKey(a => a.UserId);
 			entity.HasMany(u => u.VerificationRecords).WithOne(v => v.User).HasForeignKey(v => v.UserId);
 		});
+
+		modelBuilder.Entity<EloHistory>()
+			.HasOne(e => e.User)
+			.WithMany(u => u.EloHistories)
+			.HasForeignKey(e => e.UserId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		modelBuilder.Entity<EloHistory>()
+			.HasOne(e => e.Comparison)
+			.WithMany()
+			.HasForeignKey(e => e.ComparisonId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		modelBuilder.Entity<EloHistory>()
+			.HasOne(e => e.Opponent)
+			.WithMany()
+			.HasForeignKey(e => e.OpponentId)
+			.OnDelete(DeleteBehavior.Restrict);
 	}
 }

@@ -3,6 +3,7 @@ using System;
 using CohesionX.UserManagement.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CohesionX.UserManagement.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250720090143_UpdateOpponetEloInHistory")]
+    partial class UpdateOpponetEloInHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -89,9 +92,6 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<int>("OpponentElo")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("OpponentId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Outcome")
                         .IsRequired()
                         .HasColumnType("text");
@@ -106,8 +106,6 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ComparisonId");
-
-                    b.HasIndex("OpponentId");
 
                     b.HasIndex("UserId");
 
@@ -367,24 +365,16 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
                         .WithMany()
                         .HasForeignKey("ComparisonId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Opponent")
-                        .WithMany()
-                        .HasForeignKey("OpponentId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("EloHistories")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Comparison");
-
-                    b.Navigation("Opponent");
 
                     b.Navigation("User");
                 });

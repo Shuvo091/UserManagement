@@ -44,47 +44,65 @@ public class EloService : IEloService
 			ComparisonId = request.QaComparisonId,
 			UpdatedAt = DateTime.UtcNow
 		};
-		var userStatisticsDb = await _unitOfWork.UserStatistics.GetByUserIdsAsync(request.RecommendedEloChanges.Select(r => r.TranscriberId).ToList(), 
-																		trackChanges: true);
+
+		var userIds = request.RecommendedEloChanges
+			.Select(r => r.TranscriberId)
+			.Distinct()
+			.ToList();
+
+		var userStatisticsDb = await _unitOfWork.UserStatistics
+			.GetByUserIdsAsync(userIds, trackChanges: true);
+
+		if (userStatisticsDb == null || userStatisticsDb.Count != userIds.Count)
+			throw new Exception("Missing UserStatistics for some transcribers.");
 
 		var eloHistoryRecords = new List<EloHistory>();
 
-		if (userStatisticsDb == null 
-			|| userStatisticsDb.Distinct().Count() 
-				!= request.RecommendedEloChanges.Select(r => r.TranscriberId).Distinct().Count()
-			) 
-			throw new Exception($"User statistics not found all users");
 		foreach (var eloChange in request.RecommendedEloChanges)
 		{
-			var userStatistics = userStatisticsDb.Where(us => us.UserId == eloChange.TranscriberId).FirstOrDefault() 
+			var userStats = userStatisticsDb
+				.FirstOrDefault(us => us.UserId == eloChange.TranscriberId)
 				?? throw new Exception($"User statistics not found for user {eloChange.TranscriberId}");
+
+			// Validate current elo matches OldElo
+			if (userStats.CurrentElo != eloChange.OldElo)
+			{
+				throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
+			}
+
+			var newElo = eloChange.OldElo + eloChange.RecommendedChange;
+
 			var eloHistoryRecord = new EloHistory
 			{
 				UserId = eloChange.TranscriberId,
 				OldElo = eloChange.OldElo,
-				NewElo = eloChange.OldElo + eloChange.RecommendedChange,
+				NewElo = newElo,
+				OpponentElo = eloChange.OpponentElo,
+				OpponentId = eloChange.OpponentId,
 				Reason = request.ComparisonMetadata.QaMethod ?? "",
 				ComparisonId = request.QaComparisonId,
 				JobId = request.WorkflowRequestId ?? "",
 				Outcome = eloChange.ComparisonOutcome ?? "",
 				ComparisonType = request.ComparisonMetadata.ComparisonType ?? "",
-				KFactorUsed = CalculateKFactor(userStatistics.GamesPlayed),
+				KFactorUsed = CalculateKFactor(userStats.GamesPlayed),
 				ChangedAt = DateTime.UtcNow
 			};
 
-			userStatistics.CurrentElo = eloHistoryRecord.NewElo;
-			if (eloHistoryRecord.NewElo > userStatistics.PeakElo) userStatistics.PeakElo = eloHistoryRecord.NewElo;
-			userStatistics.GamesPlayed++;
-			userStatistics.LastCalculated = eloHistoryRecord.ChangedAt;
-			userStatistics.UpdatedAt = DateTime.UtcNow;
+			// Update stats in-memory
+			userStats.CurrentElo = newElo;
+			userStats.PeakElo = Math.Max(userStats.PeakElo, newElo);
+			userStats.GamesPlayed++;
+			userStats.LastCalculated = eloHistoryRecord.ChangedAt;
+			userStats.UpdatedAt = DateTime.UtcNow;
+
 			eloHistoryRecords.Add(eloHistoryRecord);
 
 			eloUpdateResp.EloUpdatesApplied.Add(new EloUpdateAppliedDto
 			{
 				TranscriberId = eloChange.TranscriberId,
 				OldElo = eloChange.OldElo,
-				NewElo = eloHistoryRecord.NewElo,
-				EloChange = eloHistoryRecord.NewElo - eloChange.OldElo,
+				NewElo = newElo,
+				EloChange = eloChange.RecommendedChange,
 				ComparisonOutcome = eloChange.ComparisonOutcome
 			});
 		}
@@ -92,6 +110,53 @@ public class EloService : IEloService
 		await _unitOfWork.EloHistories.AddRangeAsync(eloHistoryRecords);
 		await _unitOfWork.SaveChangesAsync();
 		return eloUpdateResp;
+	}
+
+	public async Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId)
+	{
+		var user = await _userRepo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null) throw new KeyNotFoundException("User not found");
+
+		var stats = user.Statistics;
+		var eloHistories = user.EloHistories.OrderBy(eh => eh.ChangedAt).ToList();
+		var currentElo = stats?.CurrentElo ?? 0;
+		var initialElo = eloHistories.FirstOrDefault()?.OldElo ?? 1200;
+		var peakElo = stats?.PeakElo ?? currentElo;
+		var gamesPlayed = stats?.GamesPlayed ?? eloHistories.Count;
+
+		var eloTrend7 = GetEloTrend(eloHistories, 7);
+		var eloTrend30 = GetEloTrend(eloHistories, 30);
+		var winRate = GetWinRate(eloHistories);
+		var avgOpponentElo = GetAverageOpponentElo(eloHistories);
+
+		var historyList = eloHistories.Select(eh => new EloEntryDto
+		{
+			Date = eh.ChangedAt,
+			OldElo = eh.OldElo,
+			NewElo = eh.NewElo,
+			Opponent = eh.OpponentId,
+			Outcome = eh.Outcome, // e.g. "win", "loss"
+			JobId = eh.JobId
+		}).ToList();
+
+		var response = new EloHistoryResponse
+		{
+			UserId = user.Id,
+			CurrentElo = currentElo,
+			PeakElo = peakElo,
+			InitialElo = initialElo,
+			GamesPlayed = gamesPlayed,
+			EloHistory = historyList,
+			Trends = new EloTrendsDto
+			{
+				Last7Days = eloTrend7,
+				Last30Days = eloTrend30,
+				WinRate = winRate,
+				AverageOpponentElo = avgOpponentElo
+			}
+		};
+
+		return response;
 	}
 
 	public async Task<string> GetEloTrend(Guid userId, int days)
@@ -170,14 +235,6 @@ public class EloService : IEloService
 		return grouped;
 	}
 
-
-
-	public async Task<EloHistoryDto[]> GetHistoryAsync(Guid userId)
-	{
-		var history = await _repo.GetByUserIdAsync(userId);
-		return _mapper.Map<EloHistoryDto[]>(history);
-	}
-
 	private int CalculateKFactor(int gamesPlayed)
 	{
 		return gamesPlayed switch
@@ -201,4 +258,23 @@ public class EloService : IEloService
 		double winRate = (double)wins / total * 100;
 		return winRate;
 	}
+
+	public double GetAverageOpponentElo(List<EloHistory> eloHistories, int? days = null)
+	{
+		if (days.HasValue)
+		{
+			var cutOffDate = DateTime.UtcNow.AddDays(-days.Value);
+			eloHistories = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
+		}
+
+		var validEloEntries = eloHistories
+			.Select(eh => eh.OpponentElo)
+			.ToList();
+
+		if (validEloEntries.Count == 0)
+			return 0;
+
+		return validEloEntries.Average();
+	}
+
 }
