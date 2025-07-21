@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace CohesionX.UserManagement.Shared.Persistence;
+namespace CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 
 public interface IRepository<T> where T : class
 {

@@ -1,8 +1,8 @@
 ﻿using CohesionX.UserManagement.Modules.Elo.Application.Services;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Application.Services;
-using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Persistence;
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 using CohesionX.UserManagement.Shared.Persistence;
 using IdentityServer4.Validation;
 
@@ -16,6 +16,7 @@ public static class UserModuleInstaller
 		services.AddScoped<IEloRepository, EloRepository>();
 		services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 		services.AddScoped<IUserStatisticsRepository, UserStatisticsRepository>();
+		services.AddScoped<IJobClaimRepository, JobClaimRepository>();
 
 		services.AddScoped<IPasswordHasher, PasswordHasher>();
 		services.AddScoped<IFileStorageService, FileStorageService>();

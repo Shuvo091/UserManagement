@@ -5,6 +5,7 @@ using CohesionX.UserManagement.Modules.Users.Domain.Constants;
 using CohesionX.UserManagement.Modules.Users.Application.Enums;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -17,14 +18,23 @@ namespace CohesionX.UserManagement.Controllers
 		private readonly IUserService _userService;
 		private readonly IEloService _eloService;
 		private readonly IRedisService _redisService;
+		private readonly int _defaultBookoutInMinutes;
+		private readonly IServiceScopeFactory _serviceScopeFactory;
+
 
 		public UsersController(IUserService userService
 			, IEloService eloService
-			, IRedisService redisService)
+			, IRedisService redisService
+			, IConfiguration configuration
+			, IServiceScopeFactory serviceScopeFactory)
 		{
 			_userService = userService;
 			_eloService = eloService;
 			_redisService = redisService;
+			var defaultBookoutStr = configuration["DEFAULT_BOOKOUT_MINUTES"];
+			if (!int.TryParse(defaultBookoutStr, out var defaultBookout)) defaultBookout = 480;
+			_defaultBookoutInMinutes = defaultBookout;
+			_serviceScopeFactory = serviceScopeFactory;
 		}
 
 		[AllowAnonymous]
@@ -202,22 +212,68 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpPost("{userId}/claim-job")]
-		public IActionResult ClaimJob([FromRoute] Guid userId, [FromBody] object claimJobRequest)
+		public async Task<IActionResult> ClaimJob([FromRoute] Guid userId, [FromBody] ClaimJobRequest claimJobRequest)
 		{
-			// TODO: Implement claim job logic
-			return Ok(new
+			try
 			{
-				claimValidated = true,
-				userEligible = true,
-				claimId = Guid.NewGuid(),
-				userAvailability = "available",
-				isProfessional = false,
-				bypassQARequired = false,
-				currentWorkload = 1,
-				maxConcurrentJobs = 3,
-				capacityReservedUntil = DateTime.UtcNow.AddHours(2)
-			});
+				var availability = await _redisService.GetAvailabilityAsync(userId);
+
+				if (availability == null || availability.Status != UserAvailabilityType.AVAILABLE)
+				{
+					return BadRequest(new { error = "User is currently unavailable for work." });
+				}
+				if (availability.CurrentWorkload >= availability.MaxConcurrentJobs)
+				{
+					return BadRequest(new { error = "User already has maximum concurrent jobs." });
+				}
+				var tryLockJobClaim = await _redisService.TryClaimJobAsync(claimJobRequest.JobId, userId);
+				if (!tryLockJobClaim)
+				{
+					return BadRequest(new { error = "Job is already claimed by another user." });
+				}
+
+				availability.CurrentWorkload++;
+				await _redisService.AddUserClaimAsync(userId, claimJobRequest.JobId);
+				await _redisService.SetAvailabilityAsync(userId, availability);
+				var claimId = Guid.NewGuid();
+				var response = new ClaimJobResponse
+				{
+					ClaimValidated = true,
+					UserEligible = true,
+					ClaimId = claimId,
+					UserAvailability = availability.Status,
+					CurrentWorkload = availability.CurrentWorkload,
+					MaxConcurrentJobs = availability.MaxConcurrentJobs,
+					CapacityReservedUntil = DateTime.UtcNow.AddMinutes(_defaultBookoutInMinutes)
+				};
+
+				// Fire-and-forget task
+				_ = Task.Run(async () =>
+				{
+					using var scope = _serviceScopeFactory.CreateScope();
+					var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+
+					try
+					{
+						await userService.ClaimJobAsync(userId, claimJobRequest, availability, response.CapacityReservedUntil);
+					}
+					catch (Exception ex)
+					{
+						//_logger.LogError(ex, "Error in ClaimJobAsync for UserId: {UserId}", userId);
+					}
+				});
+
+
+				await _redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
+
+				return Ok(response);
+			}
+			catch (Exception)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+			}
 		}
+
 
 		[HttpPost("{userId}/validate-tiebreaker-claim")]
 		public IActionResult ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] object tiebreakerRequest)

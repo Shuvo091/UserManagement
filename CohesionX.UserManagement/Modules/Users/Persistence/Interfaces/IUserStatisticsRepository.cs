@@ -1,7 +1,6 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Shared.Persistence;
 
-namespace CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
+namespace CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 
 public interface IUserStatisticsRepository : IRepository<UserStatistics>
 {

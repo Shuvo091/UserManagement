@@ -2,9 +2,8 @@
 using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Persistence;
-using CohesionX.UserManagement.Shared.Persistence;
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 
 namespace CohesionX.UserManagement.Modules.Elo.Application.Services;
 

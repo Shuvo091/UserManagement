@@ -1,4 +1,5 @@
 ﻿// Repository.cs
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 

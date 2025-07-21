@@ -1,5 +1,5 @@
 ﻿using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 using CohesionX.UserManagement.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
@@ -21,7 +21,9 @@ public class UserRepository : Repository<User>, IUserRepository
 	public async Task<User?> GetUserByIdAsync(Guid userId, bool includeRelated = false)
 	{
 		if (!includeRelated)
-			return await _context.Users.FindAsync(userId);
+			return await _context.Users
+				.Include(u => u.Statistics)
+				.FirstOrDefaultAsync(u => u.Id == userId);
 
 		return await _context.Users
 			.Include(u => u.Dialects)

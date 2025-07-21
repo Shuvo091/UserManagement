@@ -3,7 +3,7 @@ using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Constants;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 using System.Text.Json;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Services;
@@ -12,8 +12,8 @@ public class UserService : IUserService
 {
 	private readonly IUserRepository _repo;
 	private readonly IAuditLogRepository _auditLogRepo;
+	private readonly IJobClaimRepository _jobClaimRepo;
 	private readonly IEloService _eloService;
-	private readonly IMapper _mapper;
 	private readonly IPasswordHasher _passwordHasher;
 	private readonly int _initElo;
 	private readonly int _minEloRequiredForPro;
@@ -22,6 +22,7 @@ public class UserService : IUserService
 	public UserService(
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
+		IJobClaimRepository jobClaimRepo,
 		IMapper mapper,
 		IPasswordHasher passwordHasher,
 		IConfiguration configuration,
@@ -29,7 +30,7 @@ public class UserService : IUserService
 	{
 		_repo = repo;
 		_auditLogRepo = auditLogRepo;
-		_mapper = mapper;
+		_jobClaimRepo = jobClaimRepo;
 		_passwordHasher = passwordHasher;
 		_eloService = eloService;
 		var initEloStr = configuration["INITIAL_ELO_RATING"];
@@ -263,5 +264,22 @@ public class UserService : IUserService
 		if (totalJobs < _minJobsRequiredForPro) missingCriteria.Add("total_jobs");
 
 		return missingCriteria;
+	}
+
+	public async Task ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, UserAvailabilityRedisDto availability, DateTime bookouExpiresAt)
+	{
+		var user = await _repo.GetUserByIdAsync(userId);
+		if (user == null) throw new KeyNotFoundException("User not found");
+
+		var jobClaim = new JobClaim
+		{
+			UserId = userId,
+			JobId = claimJobRequest.JobId,
+			ClaimedAt = claimJobRequest.ClaimTimestamp,
+			BookOutExpiresAt = bookouExpiresAt,
+			Status = JobClaimStatus.PENDING,
+			CreatedAt = DateTime.UtcNow
+		};
+		jobClaim = await _jobClaimRepo.AddJobClaimAsync(jobClaim);
 	}
 }

@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
-using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
 
-namespace CohesionX.UserManagement.Shared.Persistence;
+namespace CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 
 public interface IUnitOfWork
 {

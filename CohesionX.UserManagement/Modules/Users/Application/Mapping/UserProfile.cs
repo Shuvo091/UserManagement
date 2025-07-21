@@ -21,7 +21,6 @@ public class UserProfileMapping : Profile
 		CreateMap<UserStatistics, UserStatisticsDto>();
 		CreateMap<EloHistory, EloHistoryDto>();
 		CreateMap<JobCompletion, JobCompletionDto>();
-		CreateMap<JobClaim, JobClaimDto>();
 		CreateMap<AuditLog, AuditLogDto>();
 		CreateMap<VerificationRecord, VerificationRecordDto>();
 		CreateMap<EloHistory, EloHistoryDto>();

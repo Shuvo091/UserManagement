@@ -5,15 +5,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CohesionX.UserManagement.Modules.Users.Persistence;
 
-public class EloRepository : Repository<EloHistory>, IEloRepository
+public class JobClaimRepository : Repository<JobClaim>, IJobClaimRepository
 {
 	private readonly AppDbContext _context;
 
-	public EloRepository(AppDbContext context) : base(context)
+	public JobClaimRepository(AppDbContext context) : base(context)
 	{
 		_context = context;
 	}
 
-	public async Task<List<EloHistory>> GetByUserIdAsync(Guid userId)
-		=> await _context.EloHistories.Where(er => er.UserId == userId).ToListAsync();
+	public async Task<JobClaim> AddJobClaimAsync(JobClaim jobClaim)
+	{
+		await _context.JobClaims.AddAsync(jobClaim);
+		return jobClaim;
+	}
 }

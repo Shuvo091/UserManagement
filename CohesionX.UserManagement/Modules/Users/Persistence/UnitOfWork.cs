@@ -1,5 +1,5 @@
-﻿using CohesionX.UserManagement.Modules.Users.Domain.Interfaces;
-using CohesionX.UserManagement.Modules.Users.Persistence;
+﻿using CohesionX.UserManagement.Modules.Users.Persistence;
+using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 
 namespace CohesionX.UserManagement.Shared.Persistence;
 
