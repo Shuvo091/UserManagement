@@ -3,6 +3,7 @@ using System;
 using CohesionX.UserManagement.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CohesionX.UserManagement.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250722200820_AddOpponentId2")]
+    partial class AddOpponentId2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -111,8 +114,6 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("ComparisonId");
 
                     b.HasIndex("OpponentId");
-
-                    b.HasIndex("OpponentId2");
 
                     b.HasIndex("UserId");
 
@@ -381,11 +382,6 @@ namespace CohesionX.UserManagement.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Opponent2")
-                        .WithMany()
-                        .HasForeignKey("OpponentId2")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
                         .WithMany("EloHistories")
                         .HasForeignKey("UserId")
@@ -395,8 +391,6 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("Comparison");
 
                     b.Navigation("Opponent");
-
-                    b.Navigation("Opponent2");
 
                     b.Navigation("User");
                 });

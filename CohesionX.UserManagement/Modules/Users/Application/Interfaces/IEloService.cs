@@ -7,6 +7,7 @@ public interface IEloService
 {
 	Task<EloUpdateResponse> ApplyEloUpdatesAsync(EloUpdateRequest request);
 	Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId);
+	Task<ThreeWayEloUpdateResponse> ResolveThreeWay(ThreeWayEloUpdateRequest twuReq);
 	Task<string> GetEloTrend(Guid userId, int days);
 	string GetEloTrend(List<EloHistory> eloHistories, int days);
 	double GetWinRate(List<EloHistory> eloHistories, int? days = null);

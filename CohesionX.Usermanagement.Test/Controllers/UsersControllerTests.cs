@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CohesionX.Usermanagement.Test.Controllers;
 
@@ -18,6 +19,7 @@ public class UsersControllerTests
 	private readonly Mock<IUserService> _userServiceMock = new();
 	private readonly Mock<IEloService> _eloServiceMock = new();
 	private readonly Mock<IRedisService> _redisServiceMock = new();
+	private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
 	private readonly Mock<IConfiguration> _config = new();
 	private readonly UsersController _controller;
 
@@ -27,7 +29,8 @@ public class UsersControllerTests
 			_userServiceMock.Object,
 			_eloServiceMock.Object,
 			_redisServiceMock.Object,
-			_config.Object
+			_config.Object,
+			_serviceScopeFactory.Object
 		);
 	}
 

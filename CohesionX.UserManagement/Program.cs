@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
+using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
+using CohesionX.UserManagement.Modules.Users.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -41,7 +43,7 @@ services.AddAuthorization(options =>
 	options.AddPolicy("ApiScope", policy =>
 	{
 		policy.RequireAuthenticatedUser();
-		policy.RequireClaim("scope", config["IdentityServer:ApiName"]); // "api"
+		policy.RequireClaim("scope", config["IdentityServer:ApiName"]!); // "api"
 	});
 });
 
@@ -59,8 +61,8 @@ services.AddSwaggerGen(options =>
 		{
 			AuthorizationCode = new OpenApiOAuthFlow
 			{
-				AuthorizationUrl = new Uri($"{config["IdentityServer:Authority"].TrimEnd('/')}/connect/authorize"),
-				TokenUrl = new Uri($"{config["IdentityServer:Authority"].TrimEnd('/')}/connect/token"),
+				AuthorizationUrl = new Uri($"{config["IdentityServer:Authority"]!.TrimEnd('/')}/connect/authorize"),
+				TokenUrl = new Uri($"{config["IdentityServer:Authority"]!.TrimEnd('/')}/connect/token"),
 				Scopes = new Dictionary<string, string>
 			{
 				{ "openid", "OpenID Connect" },
@@ -94,6 +96,11 @@ services.AddSwaggerGen(options =>
 // Register modules
 services.AddRedisCache(config);
 services.RegisterUserModule();
+builder.Services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>(client =>
+{
+	client.BaseAddress = new Uri(config["WORKFLOW_ENGINE_BASE_URI"]!);
+});
+
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 var app = builder.Build();
@@ -110,7 +117,7 @@ if (app.Environment.IsDevelopment())
 		options.OAuth2RedirectUrl("https://localhost:7039/swagger/oauth2-redirect.html");
 		options.OAuthAdditionalQueryStringParams(new Dictionary<string, string>
 		{
-			{ "audience", config["Jwt:Audience"] } // optional
+			{ "audience", config["Jwt:Audience"]! } // optional
 		});
 	});
 }
@@ -119,10 +126,6 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Minimal endpoints
-// app.MapUserEndpoints();
-
 app.MapControllers();
 
 app.Run();

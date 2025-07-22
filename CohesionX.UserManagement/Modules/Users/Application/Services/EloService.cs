@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using CohesionX.UserManagement.Modules.Users.Application.Constants;
 using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
@@ -11,6 +12,7 @@ public class EloService : IEloService
 {
 	private readonly IEloRepository _repo;
 	private readonly IUserRepository _userRepo;
+	private readonly IWorkflowEngineClient _workflowEngineClient;
 	private readonly IUserStatisticsRepository _userStatRepo;
 	private readonly IMapper _mapper;
 	private readonly IUnitOfWork _unitOfWork;
@@ -23,7 +25,8 @@ public class EloService : IEloService
 		, IUserStatisticsRepository userStatRepo
 		, IUnitOfWork unitOfWork
 		, IMapper mapper
-		, IConfiguration config)
+		, IConfiguration config
+		, IWorkflowEngineClient workflowEngineClient)
 	{
 		_repo = repo;
 		_userRepo = userRepo;
@@ -33,6 +36,7 @@ public class EloService : IEloService
 		_eloKFactorNew = int.TryParse(config["ELO_K_FACTOR_NEW"], out int parsedValue) ? parsedValue : 32;
 		_eloKFactorEstablished = int.TryParse(config["ELO_K_FACTOR_ESTABLISHED"], out int parsedValue2) ? parsedValue2 : 24;
 		_eloKFactorExpert = int.TryParse(config["ELO_K_FACTOR_EXPERT"], out int parsedValue3) ? parsedValue3 : 16;
+		_workflowEngineClient = workflowEngineClient;
 	}
 
 	public async Task<EloUpdateResponse> ApplyEloUpdatesAsync(EloUpdateRequest request)
@@ -108,6 +112,24 @@ public class EloService : IEloService
 		_unitOfWork.UserStatistics.UpdateRange(userStatisticsDb);
 		await _unitOfWork.EloHistories.AddRangeAsync(eloHistoryRecords);
 		await _unitOfWork.SaveChangesAsync();
+		var notifyEloUpdateReq = new EloUpdateNotificationRequest
+		{
+			UpdateId = request.WorkflowRequestId!,
+			EventType = WorkflowEventType.ELO_UPDATED,
+			EventData = new EloUpdateEventData
+			{
+				ComparisonId = request.QaComparisonId!,
+				UsersUpdated = eloUpdateResp.EloUpdatesApplied.Count,
+				UpdateResults = eloUpdateResp.EloUpdatesApplied.Select(u => new EloUpdateResult
+				{
+					UserId = u.TranscriberId,
+					NewElo = u.NewElo,
+					Change = u.EloChange
+				}).ToList()
+			}
+		};
+
+		await _workflowEngineClient.NotifyEloUpdatedAsync(notifyEloUpdateReq);
 		return eloUpdateResp;
 	}
 
@@ -274,6 +296,99 @@ public class EloService : IEloService
 			return 0;
 
 		return validEloEntries.Average();
+	}
+
+	public async Task<ThreeWayEloUpdateResponse> ResolveThreeWay(ThreeWayEloUpdateRequest twuReq)
+	{
+		var userIds = twuReq.ThreeWayEloChanges
+			.Select(t => t.TranscriberId)
+			.Distinct()
+			.ToList();
+
+		var userStatsDb = await _userStatRepo.GetByUserIdsAsync(userIds, trackChanges: true);
+
+		if (userStatsDb == null || userStatsDb.Count != userIds.Count)
+			throw new Exception("Missing statistics for one or more transcribers.");
+
+		var eloHistories = new List<EloHistory>();
+		var updateResults = new List<EloUpdateResult>();
+		var userNotifications = new List<UserNotification>();
+
+		foreach (var change in twuReq.ThreeWayEloChanges)
+		{
+			var stats = userStatsDb.FirstOrDefault(u => u.UserId == change.TranscriberId)
+				?? throw new Exception($"User stats not found for {change.TranscriberId}");
+
+			var newElo = change.NewElo;
+			var delta = change.EloChange;
+
+			// Update stats in-memory
+			stats.CurrentElo = newElo;
+			stats.PeakElo = Math.Max(stats.PeakElo, newElo);
+			stats.GamesPlayed++;
+			stats.LastCalculated = DateTime.UtcNow;
+			stats.UpdatedAt = DateTime.UtcNow;
+
+			eloHistories.Add(new EloHistory
+			{
+				UserId = change.TranscriberId,
+				OldElo = newElo - delta,
+				NewElo = newElo,
+				OpponentElo = 0,
+				OpponentId = change.OppenentId,
+				OpponentId2 = change.OpponentId2,
+				Reason = "three_way_resolution",
+				ComparisonId = twuReq.OriginalComparisonId,
+				JobId = twuReq.WorkflowRequestId,
+				Outcome = change.Outcome,
+				ComparisonType = "three_way",
+				KFactorUsed = CalculateKFactor(stats.GamesPlayed),
+				ChangedAt = DateTime.UtcNow
+			});
+
+			updateResults.Add(new EloUpdateResult
+			{
+				UserId = change.TranscriberId,
+				NewElo = newElo,
+				Change = delta
+			});
+
+			userNotifications.Add(new UserNotification
+			{
+				UserId = change.TranscriberId,
+				NotificationType = delta >= 0 ? "elo_increase" : "elo_decrease",
+				Message = delta >= 0
+					? $"Great job! Your Elo rating increased by {delta} points to {newElo}."
+					: $"Your Elo rating decreased by {Math.Abs(delta)} points to {newElo}. Review the feedback for improvement tips."
+			});
+		}
+
+		_userStatRepo.UpdateRange(userStatsDb);
+		await _unitOfWork.EloHistories.AddRangeAsync(eloHistories);
+		await _unitOfWork.SaveChangesAsync();
+
+		// Notify workflow engine
+		var notifyReq = new EloUpdateNotificationRequest
+		{
+			UpdateId = twuReq.WorkflowRequestId,
+			EventType = WorkflowEventType.ELO_UPDATED,
+			EventData = new EloUpdateEventData
+			{
+				ComparisonId = twuReq.OriginalComparisonId,
+				UsersUpdated = userIds.Count,
+				UpdateResults = updateResults
+			}
+		};
+
+		await _workflowEngineClient.NotifyEloUpdatedAsync(notifyReq);
+
+		return new ThreeWayEloUpdateResponse
+		{
+			EloUpdateConfirmed = true,
+			UpdatesApplied = updateResults.Count,
+			Timestamp = DateTime.UtcNow,
+			UserNotifications = userNotifications
+		};
 	}
 
 }

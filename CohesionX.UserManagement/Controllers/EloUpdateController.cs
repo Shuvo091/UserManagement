@@ -27,5 +27,20 @@ namespace CohesionX.UserManagement.Controllers
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
         }
-    }
+
+		[HttpPost("three-way-resolution")]
+		public async Task<IActionResult> ThreeWayResolution([FromBody] ThreeWayEloUpdateRequest twuReq)
+		{
+			try
+			{
+				var resp = await _eloService.ResolveThreeWay(twuReq);
+				return Ok(resp);
+			}
+			catch (Exception ex)
+			{
+				// Log the exception (not shown here for brevity)
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+			}
+		}
+	}
 } 
