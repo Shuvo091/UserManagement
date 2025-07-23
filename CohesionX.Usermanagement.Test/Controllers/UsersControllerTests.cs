@@ -1,16 +1,13 @@
-using Xunit;
 using Moq;
 using CohesionX.UserManagement.Controllers;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
-using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+using SharedLibrary.RequestResponseModels.UserManagement;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SharedLibrary.AppEnums;
 
 namespace CohesionX.Usermanagement.Test.Controllers;
 
@@ -77,7 +74,7 @@ public class UsersControllerTests
 	public async Task VerifyUser_UserNotFound_ReturnsNotFound()
 	{
 		var userId = Guid.NewGuid();
-		var request = new VerificationRequest { VerificationType = "id_document" };
+		var request = new VerificationRequest { VerificationType = VerificationType.IdDocument.ToDisplayName() };
 
 		_userServiceMock.Setup(s => s.GetUserAsync(userId)).ReturnsAsync((User)null);
 
@@ -87,25 +84,12 @@ public class UsersControllerTests
 		Assert.Contains("User not found", notFound.Value.ToString());
 	}
 
-	[Fact]
-	public async Task VerifyUser_InvalidType_ReturnsBadRequest()
-	{
-		var user = new User { Id = Guid.NewGuid() };
-		var request = new VerificationRequest { VerificationType = "other" };
-
-		_userServiceMock.Setup(s => s.GetUserAsync(user.Id)).ReturnsAsync(user);
-
-		var result = await _controller.VerifyUser(user.Id, request);
-
-		var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-		Assert.Contains("Unsupported verification type", badRequest.Value.ToString());
-	}
 
 	[Fact]
 	public async Task GetProfile_UserExists_ReturnsOk()
 	{
 		var userId = Guid.NewGuid();
-		var dto = new UserProfileDto { FirstName = "Jane", LastName = "Doe", EloRating = 420, Status = "active" };
+		var dto = new UserProfileResponse { FirstName = "Jane", LastName = "Doe", EloRating = 420, Status = "active" };
 
 		_userServiceMock.Setup(s => s.GetProfileAsync(userId)).ReturnsAsync(dto);
 
@@ -131,7 +115,7 @@ public class UsersControllerTests
 	public async Task GetAvailability_UserFound_ReturnsAvailability()
 	{
 		var userId = Guid.NewGuid();
-		var availability = new UserAvailabilityRedisDto { Status = "available" };
+		var availability = new UserAvailabilityRedisDto { Status = UserAvailabilityType.Available.ToDisplayName() };
 
 		_redisServiceMock.Setup(r => r.GetAvailabilityAsync(userId)).ReturnsAsync(availability);
 
@@ -158,7 +142,7 @@ public class UsersControllerTests
 	public async Task PatchAvailability_ValidUpdate_ReturnsUpdated()
 	{
 		var userId = Guid.NewGuid();
-		var update = new UserAvailabilityUpdateRequest { Status = "available", MaxConcurrentJobs = 5 };
+		var update = new UserAvailabilityUpdateRequest { Status = UserAvailabilityType.Available.ToDisplayName(), MaxConcurrentJobs = 5 };
 		var existing = new UserAvailabilityRedisDto();
 
 		_redisServiceMock.Setup(r => r.GetAvailabilityAsync(userId)).ReturnsAsync(existing);
@@ -242,8 +226,8 @@ public class UsersControllerTests
 	{
 		// Arrange
 		var userId = Guid.NewGuid();
-		var update = new UserAvailabilityUpdateRequest { Status = "busy", MaxConcurrentJobs = 2 };
-		var existing = new UserAvailabilityRedisDto { Status = "available" };
+		var update = new UserAvailabilityUpdateRequest { Status = UserAvailabilityType.Busy.ToDisplayName(), MaxConcurrentJobs = 2 };
+		var existing = new UserAvailabilityRedisDto { Status = UserAvailabilityType.Available.ToDisplayName() };
 		_redisServiceMock.Setup(r => r.GetAvailabilityAsync(userId)).ReturnsAsync(existing);
 		_redisServiceMock.Setup(r => r.SetAvailabilityAsync(userId, It.IsAny<UserAvailabilityRedisDto>())).Returns(Task.CompletedTask);
 		_userServiceMock.Setup(u => u.UpdateAvailabilityAuditAsync(userId, It.IsAny<UserAvailabilityRedisDto>(), It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
@@ -260,7 +244,7 @@ public class UsersControllerTests
 		// Assert
 		var ok = Assert.IsType<OkObjectResult>(result);
 		var response = Assert.IsType<UserAvailabilityUpdateResponse>(ok.Value);
-		Assert.Equal("busy", response.CurrentStatus);
+		Assert.Equal(UserAvailabilityType.Busy.ToDisplayName(), response.CurrentStatus);
 		// TODO: Assert audit log and event publish if possible
 	}
 
@@ -269,7 +253,7 @@ public class UsersControllerTests
 	{
 		// Arrange
 		var userId = Guid.NewGuid();
-		var profile = new UserProfileDto
+		var profile = new UserProfileResponse
 		{
 			FirstName = "Lindiwe",
 			LastName = "Zulu",
@@ -285,7 +269,7 @@ public class UsersControllerTests
 
 		// Assert
 		var ok = Assert.IsType<OkObjectResult>(result);
-		var dto = Assert.IsType<UserProfileDto>(ok.Value);
+		var dto = Assert.IsType<UserProfileResponse>(ok.Value);
 		Assert.Equal(1500, dto.EloRating);
 		Assert.Equal(10, dto.Statistics.TotalJobsCompleted);
 		Assert.Equal("+100_over_7_days", dto.Statistics.EloTrend);

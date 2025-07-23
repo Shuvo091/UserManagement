@@ -1,10 +1,9 @@
 ﻿using AutoMapper;
-using CohesionX.UserManagement.Modules.Users.Application.Constants;
-using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
-using CohesionX.UserManagement.Modules.Users.Persistence;
 using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
+using SharedLibrary.AppEnums;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Modules.Elo.Application.Services;
 
@@ -115,7 +114,7 @@ public class EloService : IEloService
 		var notifyEloUpdateReq = new EloUpdateNotificationRequest
 		{
 			UpdateId = request.WorkflowRequestId!,
-			EventType = WorkflowEventType.ELO_UPDATED,
+			EventType = WorkflowEventType.EloUpdated.ToDisplayName(),
 			EventData = new EloUpdateEventData
 			{
 				ComparisonId = request.QaComparisonId!,
@@ -371,7 +370,7 @@ public class EloService : IEloService
 		var notifyReq = new EloUpdateNotificationRequest
 		{
 			UpdateId = twuReq.WorkflowRequestId,
-			EventType = WorkflowEventType.ELO_UPDATED,
+			EventType = WorkflowEventType.EloUpdated.ToDisplayName(),
 			EventData = new EloUpdateEventData
 			{
 				ComparisonId = twuReq.OriginalComparisonId,

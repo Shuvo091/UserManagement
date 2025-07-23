@@ -1,4 +1,4 @@
-﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+﻿using SharedLibrary.RequestResponseModels.UserManagement;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using SharedLibrary.Cache.Services.Interfaces;
 using System.Text.Json;
@@ -86,13 +86,13 @@ public class RedisService : IRedisService
 		}
 	}
 
-	public async Task<UserEloDto?> GetUserEloAsync(Guid userId)
+	public async Task<UserEloRedisDto?> GetUserEloAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetUserEloKey(userId));
-		return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<UserEloDto>(json);
+		return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<UserEloRedisDto>(json);
 	}
 
-	public async Task SetUserEloAsync(Guid userId, UserEloDto dto)
+	public async Task SetUserEloAsync(Guid userId, UserEloRedisDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
 		await _cache.SetAsync<string>(GetUserEloKey(userId), json, _userEloTtl);

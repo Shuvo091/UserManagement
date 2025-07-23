@@ -1,4 +1,4 @@
-﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+﻿using SharedLibrary.RequestResponseModels.UserManagement;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces;

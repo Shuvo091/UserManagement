@@ -1,4 +1,4 @@
-﻿using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+﻿using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 
@@ -14,8 +14,8 @@ public interface IRedisService
 	Task AddUserClaimAsync(Guid userId, string jobId);
 	Task RemoveUserClaimAsync(Guid userId, string jobId);
 
-	Task<UserEloDto?> GetUserEloAsync(Guid userId);
-	Task SetUserEloAsync(Guid userId, UserEloDto dto);
+	Task<UserEloRedisDto?> GetUserEloAsync(Guid userId);
+	Task SetUserEloAsync(Guid userId, UserEloRedisDto dto);
 
 	Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds);
 }

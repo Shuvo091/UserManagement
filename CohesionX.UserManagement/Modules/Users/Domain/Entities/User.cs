@@ -1,4 +1,4 @@
-﻿using CohesionX.UserManagement.Modules.Users.Domain.Constants;
+﻿using SharedLibrary.AppEnums;
 
 namespace CohesionX.UserManagement.Modules.Users.Domain.Entities;
 
@@ -12,8 +12,8 @@ public class User : BaseEntity
 	public string PasswordHash { get; set; } = default!;
 	public string? Phone { get; set; } = default!;
 	public string? IdNumber { get; set; } = default!;
-	public string Status { get; set; } = UserStatus.PENDING_VERIFICATION;
-	public string Role { get; set; } = UserRole.TRANSCRIBER;
+	public string Status { get; set; } = UserStatusType.PendingVerification.ToDisplayName();
+	public string Role { get; set; } = UserRoleType.Transcriber.ToDisplayName();
 	public bool IsProfessional { get; set; }
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

@@ -1,6 +1,6 @@
-using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Controllers
 {

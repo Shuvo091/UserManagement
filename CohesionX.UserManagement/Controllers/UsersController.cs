@@ -1,11 +1,8 @@
-using CohesionX.UserManagement.Modules.Users.Application.DTOs;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using CohesionX.UserManagement.Modules.Users.Domain.Constants;
-using CohesionX.UserManagement.Modules.Users.Application.Enums;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.DependencyInjection;
+using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.AppEnums;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -58,7 +55,7 @@ namespace CohesionX.UserManagement.Controllers
 				return NotFound(new { error = "User not found" });
 			}
 			// Basic validation checks
-			if (verificationRequest.VerificationType != "id_document")
+			if (verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
 			{
 				return BadRequest(new { error = "Unsupported verification type" });
 			}
@@ -107,7 +104,7 @@ namespace CohesionX.UserManagement.Controllers
 			var trendMap = await _eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
 			var availableUsers = users
 				.Where(u => cacheMap.ContainsKey(u.Id)
-						&& cacheMap[u.Id].Status.ToLower() == UserAvailabilityType.AVAILABLE.ToLower())
+						&& cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
 				.Select(u =>
 				{
 					var availability = cacheMap.ContainsKey(u.Id)
@@ -124,7 +121,7 @@ namespace CohesionX.UserManagement.Controllers
 						RecentPerformance = trendMap[u.Id],
 						GamesPlayed = u.Statistics?.GamesPlayed,
 						Role = u.Role,
-						BypassQaComparison = u.Role == UserRole.PROFESSIONAL,
+						BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
 						LastActive = u.Statistics?.LastCalculated
 					};
 				})
@@ -154,6 +151,8 @@ namespace CohesionX.UserManagement.Controllers
 			var existingAvailability = await _redisService.GetAvailabilityAsync(userId)
 								?? new UserAvailabilityRedisDto();
 
+			if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome)) return BadRequest("Invalid Status Provided.");
+			if (availabilityUpdate.MaxConcurrentJobs < 1) return BadRequest("Maximum concurrent job should be greater than 0");
 			if (availabilityUpdate != null)
 			{
 				existingAvailability.Status = availabilityUpdate.Status;
@@ -218,7 +217,7 @@ namespace CohesionX.UserManagement.Controllers
 			{
 				var availability = await _redisService.GetAvailabilityAsync(userId);
 
-				if (availability == null || availability.Status != UserAvailabilityType.AVAILABLE)
+				if (availability == null || availability.Status != UserAvailabilityType.Available.ToDisplayName())
 				{
 					return BadRequest(new { error = "User is currently unavailable for work." });
 				}
@@ -255,7 +254,7 @@ namespace CohesionX.UserManagement.Controllers
 
 					try
 					{
-						await userService.ClaimJobAsync(userId, claimJobRequest, availability, response.CapacityReservedUntil);
+						await userService.ClaimJobAsync(userId, claimId, claimJobRequest, response.CapacityReservedUntil);
 					}
 					catch (Exception ex)
 					{

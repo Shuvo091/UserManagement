@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
-using CohesionX.UserManagement.Modules.Users.Application.DTOs;
+using SharedLibrary.RequestResponseModels.UserManagement;
 using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
-using CohesionX.UserManagement.Modules.Users.Domain.Constants;
+using SharedLibrary.AppEnums;
 using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 using System.Text.Json;
@@ -76,8 +76,8 @@ public class UserService : IUserService
 			IdNumber = dto.IdNumber,
 			CreatedAt = DateTime.UtcNow,
 			UpdatedAt = DateTime.UtcNow,
-			Status = UserStatus.PENDING_VERIFICATION,
-			Role = UserRole.TRANSCRIBER,
+			Status = UserStatusType.PendingVerification.ToDisplayName(),
+			Role = UserRoleType.Transcriber.ToDisplayName(),
 			IsProfessional = false
 		};
 
@@ -126,7 +126,7 @@ public class UserService : IUserService
 		};
 	}
 
-	public async Task<UserProfileDto> GetProfileAsync(Guid userId)
+	public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
 		if (user == null) throw new KeyNotFoundException("User not found");
@@ -148,7 +148,7 @@ public class UserService : IUserService
 
 		var jobsLast30Days = jobCompletions.Count(jc => jc.CompletedAt >= DateTime.UtcNow.AddDays(-30));
 
-		var dto = new UserProfileDto
+		var dto = new UserProfileResponse
 		{
 			FirstName = user.FirstName,
 			LastName = user.LastName,
@@ -156,7 +156,7 @@ public class UserService : IUserService
 			PeakElo = stats?.PeakElo ?? 0,
 			Status = user.Status,
 			RegisteredAt = user.CreatedAt,
-			IsProfessional = user.Role == UserRole.PROFESSIONAL,
+			IsProfessional = user.Role == UserRoleType.Professional.ToDisplayName(),
 			ProfessionalEligibility = new ProfessionalEligibilityDto
 			{
 				Eligible = eligible,
@@ -184,8 +184,8 @@ public class UserService : IUserService
 			Preferences = new UserPreferencesDto
 			{
 				MaxConcurrentJobs = 3,
-				DialectPreferences = new List<string> { "western_cape" },
-				PreferredJobTypes = new List<string> { "conference_calls", "interviews" }
+				DialectPreferences = user.Dialects.Select(d => d.Dialect).ToList(),
+				PreferredJobTypes = [] // TODO: Where to get preferred job type
 			}
 		};
 
@@ -222,12 +222,12 @@ public class UserService : IUserService
 
 	public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
 	{
-		user.Status = UserStatus.ACTIVE;
+		user.Status = UserStatusType.Active.ToDisplayName();
 		var verificationRecord = new VerificationRecord
 		{
 			VerificationType = verificationDto.VerificationType,
-			Status = VerificationStatus.APPROVED,
-			VerificationLevel = VerificationLevel.BASIC,
+			Status = VerificationStatusType.Approved.ToDisplayName(),
+			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
 			VerificationData = JsonSerializer.Serialize(verificationDto),
 			VerifiedAt = DateTime.UtcNow,
 			CreatedAt = DateTime.UtcNow
@@ -266,20 +266,19 @@ public class UserService : IUserService
 		return missingCriteria;
 	}
 
-	public async Task ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, UserAvailabilityRedisDto availability, DateTime bookouExpiresAt)
+	public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
 	{
-		var user = await _repo.GetUserByIdAsync(userId);
-		if (user == null) throw new KeyNotFoundException("User not found");
-
 		var jobClaim = new JobClaim
 		{
+			Id = claimId,
 			UserId = userId,
 			JobId = claimJobRequest.JobId,
 			ClaimedAt = claimJobRequest.ClaimTimestamp,
 			BookOutExpiresAt = bookouExpiresAt,
-			Status = JobClaimStatus.PENDING,
+			Status = JobClaimStatus.Pending.ToDisplayName(),
 			CreatedAt = DateTime.UtcNow
 		};
 		jobClaim = await _jobClaimRepo.AddJobClaimAsync(jobClaim);
+		await _jobClaimRepo.SaveChangesAsync();
 	}
 }
