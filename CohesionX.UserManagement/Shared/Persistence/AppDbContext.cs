@@ -46,17 +46,5 @@ public class AppDbContext : DbContext
 			.WithMany()
 			.HasForeignKey(e => e.ComparisonId)
 			.OnDelete(DeleteBehavior.Restrict);
-
-		modelBuilder.Entity<EloHistory>()
-			.HasOne(e => e.Opponent)
-			.WithMany()
-			.HasForeignKey(e => e.OpponentId)
-			.OnDelete(DeleteBehavior.Restrict);
-
-		modelBuilder.Entity<EloHistory>()
-			.HasOne(e => e.Opponent2)
-			.WithMany()
-			.HasForeignKey(e => e.OpponentId2)
-			.OnDelete(DeleteBehavior.Restrict);
 	}
 }

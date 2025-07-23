@@ -5,8 +5,6 @@ public class EloHistory : BaseEntity
 	public int OldElo { get; set; }
 	public int NewElo { get; set; }
 	public int OpponentElo { get; set; }
-	public Guid? OpponentId2 { get; set; }
-	public Guid OpponentId { get; set; }
 	public string Reason { get; set; } = default!;
 	public Guid ComparisonId { get; set; }
 	public string JobId { get; set; } = default!;
@@ -17,6 +15,4 @@ public class EloHistory : BaseEntity
 
 	public User User { get; set; } = default!;
 	public User Comparison { get; set; } = default!;
-	public User Opponent { get; set; } = default!;
-	public User? Opponent2 { get; set; }
 }

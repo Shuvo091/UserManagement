@@ -273,7 +273,6 @@ namespace CohesionX.UserManagement.Controllers
 			}
 		}
 
-
 		[HttpPost("{userId}/validate-tiebreaker-claim")]
 		public IActionResult ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] object tiebreakerRequest)
 		{
