@@ -9,7 +9,6 @@ namespace CohesionX.UserManagement.Controllers
 	//[Authorize(Policy = "ApiScope")]
 	[ApiController]
 	[Route("api/v1/users")]
-	[IgnoreAntiforgeryToken]
 	public class UsersController : ControllerBase
 	{
 		private readonly IUserService _userService;
@@ -50,7 +49,7 @@ namespace CohesionX.UserManagement.Controllers
 		public async Task<IActionResult> VerifyUser([FromRoute] Guid userId, [FromBody] VerificationRequest verificationRequest)
 		{
 			var user = await _userService.GetUserAsync(userId);
-			if(user is null)
+			if (user is null)
 			{
 				return NotFound(new { error = "User not found" });
 			}
@@ -71,7 +70,7 @@ namespace CohesionX.UserManagement.Controllers
 				!validationResult.IdFormatValid ||
 				!validationResult.PhotoPresent ||
 				!idValidation.PhotoUploaded ||
-				user.IdNumber != idValidation.IdNumber )
+				user.IdNumber != idValidation.IdNumber)
 			{
 				return BadRequest(new { error = "ID document validation failed field checks" });
 			}
@@ -128,7 +127,8 @@ namespace CohesionX.UserManagement.Controllers
 				.ToList();
 
 
-			return Ok(new UserAvailabilityResponse { 
+			return Ok(new UserAvailabilityResponse
+			{
 				AvailableUsers = availableUsers,
 				TotalAvailable = availableUsers.Count,
 				QueryTimestamp = DateTime.UtcNow
@@ -188,7 +188,7 @@ namespace CohesionX.UserManagement.Controllers
 				var profile = await _userService.GetProfileAsync(userId);
 				return Ok(profile);
 			}
-			catch(Exception e)
+			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 
@@ -274,20 +274,20 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpPost("{userId}/validate-tiebreaker-claim")]
-		public IActionResult ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] object tiebreakerRequest)
+		public async Task<IActionResult> ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] ValidateTiebreakerClaimRequest tiebreakerRequest)
 		{
-			// TODO: Implement tiebreaker claim logic
-			return Ok(new
+			try
 			{
-				tiebreakerClaimValidated = true,
-				userId,
-				userEloQualified = true,
-				currentElo = 1420,
-				isOriginalTranscriber = false,
-				claimId = Guid.NewGuid(),
-				bonusConfirmed = true,
-				estimatedCompletion = "45m"
-			});
+				var profile = await _userService.ValidateTieBreakerClaim(userId, tiebreakerRequest);
+				if (profile.IsOriginalTranscriber) return Forbid("Users who participated in the original transcription cannot be tiebreakers");
+				if (!profile.UserEloQualified) return Forbid("Users does not meet minimal elo requirement");
+				return Ok(profile);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpGet("{userId}/professional-status")]

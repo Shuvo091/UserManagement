@@ -14,5 +14,7 @@ namespace CohesionX.UserManagement.Modules.Users.Application.Interfaces
 		Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
 		Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent);
 		Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt);
+		Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq);
+		Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq);
 	}
 }

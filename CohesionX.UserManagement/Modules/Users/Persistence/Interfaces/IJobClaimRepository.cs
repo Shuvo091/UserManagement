@@ -5,4 +5,5 @@ namespace CohesionX.UserManagement.Modules.Users.Persistence.Interfaces;
 public interface IJobClaimRepository : IRepository<JobClaim>
 {
 	Task<JobClaim> AddJobClaimAsync(JobClaim jobClaim);
+	Task<JobClaim?> GetJobClaimByJobId(string jobId, bool trackChanges = false);
 }

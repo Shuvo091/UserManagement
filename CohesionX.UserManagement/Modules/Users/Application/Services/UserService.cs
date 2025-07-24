@@ -82,7 +82,7 @@ public class UserService : IUserService
 		};
 
 		// Add dialect preferences
-		if(dto.DialectPreferences != null && dto.DialectPreferences.Any())
+		if (dto.DialectPreferences != null && dto.DialectPreferences.Any())
 		{
 			foreach (var dialect in dto.DialectPreferences)
 			{
@@ -110,7 +110,7 @@ public class UserService : IUserService
 		// Attempt activation
 		var verificationRequired = new List<string>
 		{
-			"id_document_upload" 
+			"id_document_upload"
 		};
 
 		await _repo.AddAsync(user);
@@ -121,7 +121,7 @@ public class UserService : IUserService
 			UserId = user.Id,
 			EloRating = user.Statistics.CurrentElo,
 			Status = user.Status,
-			ProfileUri= $"/api/v1/users/{user.Id}/profile",
+			ProfileUri = $"/api/v1/users/{user.Id}/profile",
 			VerificationRequired = verificationRequired
 		};
 	}
@@ -253,7 +253,7 @@ public class UserService : IUserService
 	public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
 	{
 		var user = await _repo.GetUserByIdAsync(userId);
-		if(user == null) return false;
+		if (user == null) return false;
 		return user.IdNumber == idNumber;
 	}
 
@@ -280,5 +280,57 @@ public class UserService : IUserService
 		};
 		jobClaim = await _jobClaimRepo.AddJobClaimAsync(jobClaim);
 		await _jobClaimRepo.SaveChangesAsync();
+	}
+
+	public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
+		if (user == null || claim == null || user.Statistics == null)
+		{
+			throw new Exception("User not found");
+		}
+		return new ValidateTiebreakerClaimResponse
+		{
+			TiebreakerClaimValidated = (user != null && claim != null && user.Statistics != null
+			&& user.Statistics.CurrentElo >= validationReq.RequiredMinElo && !validationReq.OriginalTranscribers.Contains(userId)),
+			UserId = userId,
+			UserEloQualified = user!.Statistics!.CurrentElo >= validationReq.RequiredMinElo,
+			CurrentElo = user.Statistics!.CurrentElo,
+			IsOriginalTranscriber = validationReq.OriginalTranscribers.Contains(userId),
+			ClaimId = claim!.Id.ToString(),
+			BonusConfirmed = true, // TODO: Calculate
+			EstimatedCompletion = "" // TODO: Calculate based on job complexity
+		};
+	}
+
+	public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null)
+			throw new KeyNotFoundException("User not found");
+
+
+		user.IsProfessional = validationReq.IsProfessional;
+
+		user.VerificationRecords.Add(new VerificationRecord
+		{
+			VerificationData = JsonSerializer.Serialize(validationReq.ProfessionalVerification.VerificationDocuments),
+			VerificationType = VerificationType.IdDocument.ToDisplayName(),
+			Status = VerificationStatusType.Approved.ToDisplayName(),
+			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
+			VerifiedAt = DateTime.UtcNow,
+			CreatedAt = DateTime.UtcNow
+		});
+		user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
+
+		_repo.Update(user);
+		await _repo.SaveChangesAsync();
+
+		return new SetProfessionalResponse
+		{
+			UserId = user.Id,
+			RoleUpdated = true
+		};
 	}
 }

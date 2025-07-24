@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using SharedLibrary.RequestResponseModels.UserManagement;
+using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -8,20 +10,26 @@ namespace CohesionX.UserManagement.Controllers
     [Authorize(Roles = "admin")]
     public class AdminController : ControllerBase
     {
-        [HttpPost("users/{userId}/set-professional")]
-        public IActionResult SetProfessional([FromRoute] Guid userId, [FromBody] object setProfessionalRequest)
+		private readonly IUserService _userService;
+
+		public AdminController(IUserService userService)
+		{
+			    _userService = userService;
+		}
+		[HttpPost("users/{userId}/set-professional")]
+        public async Task<IActionResult> SetProfessional([FromRoute] Guid userId, [FromBody] SetProfessionalRequest setProfessionalRequest)
         {
-            // TODO: Implement set professional logic
-            return Ok(new
-            {
-                userId,
-                roleUpdated = true,
-                isProfessional = true,
-                previousRole = "transcriber",
-                newRole = "professional",
-                effectiveFrom = DateTime.UtcNow
-            });
-        }
+			try
+			{
+				var profile = await _userService.SetProfessional(userId, setProfessionalRequest);
+				return Ok(profile);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
+		}
 
         [HttpPut("config")]
         public IActionResult UpdateConfig([FromBody] object configRequest)
