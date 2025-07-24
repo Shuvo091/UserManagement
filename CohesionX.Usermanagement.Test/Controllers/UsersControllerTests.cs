@@ -1,13 +1,13 @@
 using Moq;
 using CohesionX.UserManagement.Controllers;
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using SharedLibrary.RequestResponseModels.UserManagement;
 using Microsoft.AspNetCore.Mvc;
-using CohesionX.UserManagement.Modules.Users.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedLibrary.AppEnums;
+using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Domain.Entities;
 
 namespace CohesionX.Usermanagement.Test.Controllers;
 
@@ -15,6 +15,7 @@ public class UsersControllerTests
 {
 	private readonly Mock<IUserService> _userServiceMock = new();
 	private readonly Mock<IEloService> _eloServiceMock = new();
+	private readonly Mock<IVerificationRequirementService> _verificationReqMock = new();
 	private readonly Mock<IRedisService> _redisServiceMock = new();
 	private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
 	private readonly Mock<IConfiguration> _config = new();
@@ -27,7 +28,8 @@ public class UsersControllerTests
 			_eloServiceMock.Object,
 			_redisServiceMock.Object,
 			_config.Object,
-			_serviceScopeFactory.Object
+			_serviceScopeFactory.Object,
+			_verificationReqMock.Object
 		);
 	}
 

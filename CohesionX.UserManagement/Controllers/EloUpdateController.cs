@@ -1,10 +1,10 @@
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
+using CohesionX.UserManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Controllers
 {
-    [ApiController]
+	[ApiController]
     [Route("api/v1/elo-update")]
     public class EloUpdateController : ControllerBase
     {

@@ -1,0 +1,13 @@
+﻿{
+    "RequireIdDocument": true,
+    "RequirePhotoUpload": true,
+    "RequirePhoneVerification": true,
+    "RequireEmailVerification": true,
+    "VerificationLevel": "basic_v1",
+    "ValidationRules": {
+        "idNumber": "format_validation_only",
+        "photo": "presence_check_only",
+        "note": "V2_will_add_dha_verification"
+    },
+    "Reason": "PII_compliance_SA_POPIA_with_basic_validation"
+}

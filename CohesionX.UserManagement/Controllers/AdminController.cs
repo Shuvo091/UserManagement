@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SharedLibrary.RequestResponseModels.UserManagement;
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
+using CohesionX.UserManagement.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Controllers
 {
-    [ApiController]
+	[ApiController]
     [Route("api/v1/admin")]
-    [Authorize(Roles = "admin")]
+    //[Authorize(Roles = "admin")]
     public class AdminController : ControllerBase
     {
 		private readonly IUserService _userService;

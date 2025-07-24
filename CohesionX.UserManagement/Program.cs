@@ -1,12 +1,13 @@
-using CohesionX.UserManagement.Shared.Persistence;
-using CohesionX.UserManagement.Modules.Users.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
-using CohesionX.UserManagement.Modules.Users.Application.Services;
+using CohesionX.UserManagement.Middleware;
+using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Services;
+using CohesionX.UserManagement.Config;
+using CohesionX.UserManagement.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -127,5 +128,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+using (var scope = app.Services.CreateScope())
+{
+	var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	await DbSeeder.SeedGlobalVerificationRequirementAsync(context);
+}
 app.Run();

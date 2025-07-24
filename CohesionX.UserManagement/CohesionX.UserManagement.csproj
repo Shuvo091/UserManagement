@@ -27,10 +27,7 @@
 
   <ItemGroup>
     <Folder Include="Controllers\" />
-    <Folder Include="Middleware\" />
-    <Folder Include="Modules\Availability\" />
-    <Folder Include="Modules\Admin\" />
-    <Folder Include="Modules\Users\Config\" />
+    <Folder Include="Config\" />
   </ItemGroup>
 
   <ItemGroup>

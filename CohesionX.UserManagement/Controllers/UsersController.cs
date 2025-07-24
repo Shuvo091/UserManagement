@@ -1,8 +1,8 @@
-using CohesionX.UserManagement.Modules.Users.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SharedLibrary.RequestResponseModels.UserManagement;
 using SharedLibrary.AppEnums;
+using CohesionX.UserManagement.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -13,6 +13,7 @@ namespace CohesionX.UserManagement.Controllers
 	{
 		private readonly IUserService _userService;
 		private readonly IEloService _eloService;
+		private readonly IVerificationRequirementService _verificationRequirementService;
 		private readonly IRedisService _redisService;
 		private readonly int _defaultBookoutInMinutes;
 		private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -22,10 +23,12 @@ namespace CohesionX.UserManagement.Controllers
 			, IEloService eloService
 			, IRedisService redisService
 			, IConfiguration configuration
-			, IServiceScopeFactory serviceScopeFactory)
+			, IServiceScopeFactory serviceScopeFactory
+			, IVerificationRequirementService verificationRequirementService)
 		{
 			_userService = userService;
 			_eloService = eloService;
+			_verificationRequirementService = verificationRequirementService;
 			_redisService = redisService;
 			var defaultBookoutStr = configuration["DEFAULT_BOOKOUT_MINUTES"];
 			if (!int.TryParse(defaultBookoutStr, out var defaultBookout)) defaultBookout = 480;
@@ -37,55 +40,83 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPost("register")]
 		public async Task<IActionResult> Register([FromBody] UserRegisterRequest dto)
 		{
-			if (!ModelState.IsValid)
-				return BadRequest(ModelState);
+			try
+			{
+				if (!ModelState.IsValid)
+					return BadRequest(ModelState);
 
-			var result = await _userService.RegisterUserAsync(dto);
+				var result = await _userService.RegisterUserAsync(dto);
 
-			return CreatedAtAction(nameof(GetProfile), new { userId = result.UserId }, result);
+				return CreatedAtAction(nameof(GetProfile), new { userId = result.UserId }, result);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpPost("{userId}/verify")]
 		public async Task<IActionResult> VerifyUser([FromRoute] Guid userId, [FromBody] VerificationRequest verificationRequest)
 		{
-			var user = await _userService.GetUserAsync(userId);
-			if (user is null)
+			try
 			{
-				return NotFound(new { error = "User not found" });
-			}
-			// Basic validation checks
-			if (verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
-			{
-				return BadRequest(new { error = "Unsupported verification type" });
-			}
+				var requirements = await _verificationRequirementService.GetVerificationRequirement();
+				if (requirements is null)
+					return BadRequest(new { error = "Verification requirements not configured." });
 
-			var idValidation = verificationRequest.IdDocumentValidation;
-			if (idValidation is null || !idValidation.Enabled)
-			{
-				return BadRequest(new { error = "ID document validation must be enabled" });
-			}
+				var user = await _userService.GetUserAsync(userId);
+				if (user is null)
+					return NotFound(new { error = "User not found." });
 
-			var validationResult = idValidation.ValidationResult;
-			if (validationResult is null ||
-				!validationResult.IdFormatValid ||
-				!validationResult.PhotoPresent ||
-				!idValidation.PhotoUploaded ||
-				user.IdNumber != idValidation.IdNumber)
-			{
-				return BadRequest(new { error = "ID document validation failed field checks" });
-			}
+				// Type check
+				if (requirements.RequireIdDocument &&
+					verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
+				{
+					return BadRequest(new { error = "Verification type must be 'IdDocument'." });
+				}
 
-			var additional = verificationRequest.AdditionalVerification;
-			if (additional is null ||
-				!additional.PhoneVerification ||
-				!additional.EmailVerification)
-			{
-				return BadRequest(new { error = "Phone and Email verification must be completed" });
-			}
+				// ID Document check
+				var idValidation = verificationRequest.IdDocumentValidation;
+				if (requirements.RequireIdDocument)
+				{
+					if (idValidation is null || !idValidation.Enabled)
+						return BadRequest(new { error = "ID document validation must be enabled." });
 
-			var response = await _userService.ActivateUser(user, verificationRequest);
-			return Ok(response);
+					var validation = idValidation.ValidationResult;
+					if (validation is null ||
+						user.IdNumber is null ||
+						!validation.IdFormatValid ||
+						!validation.PhotoPresent ||
+						!idValidation.PhotoUploaded ||
+						user.IdNumber != idValidation.IdNumber)
+					{
+						return BadRequest(new { error = "ID document validation failed field checks." });
+					}
+				}
+
+				// Phone & Email check
+				var additional = verificationRequest.AdditionalVerification;
+				if (additional is null)
+					return BadRequest(new { error = "Additional verification is missing." });
+
+				if (requirements.RequirePhoneVerification && !additional.PhoneVerification)
+					return BadRequest(new { error = "Phone verification is required." });
+
+				if (requirements.RequireEmailVerification && !additional.EmailVerification)
+					return BadRequest(new { error = "Email verification is required." });
+
+				// Activate User
+				var response = await _userService.ActivateUser(user, verificationRequest);
+				return Ok(response);
+			}
+			catch (Exception)
+			{
+				// Log exception here (e.g., logger.LogError(e, ...))
+				return StatusCode(500, new { error = "An internal error occurred while processing your request." });
+			}
 		}
+
 
 		[HttpGet("available-for-work")]
 		public async Task<IActionResult> GetAvailableForWork(
