@@ -223,6 +223,7 @@ public class UserService : IUserService
 	public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
 	{
 		user.Status = UserStatusType.Active.ToDisplayName();
+		user.IdNumber = verificationDto.IdDocumentValidation.IdNumber;
 		var verificationRecord = new VerificationRecord
 		{
 			VerificationType = verificationDto.VerificationType,
@@ -345,5 +346,10 @@ public class UserService : IUserService
 			NewRole = user.Role,
 			EffectiveFrom = DateTime.UtcNow
 		};
+	}
+
+	public Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
+	{
+		throw new NotImplementedException();
 	}
 }

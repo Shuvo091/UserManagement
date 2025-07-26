@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using SharedLibrary.RequestResponseModels.UserManagement;
 using SharedLibrary.AppEnums;
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Domain.Entities;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -45,6 +46,9 @@ namespace CohesionX.UserManagement.Controllers
 				if (!ModelState.IsValid)
 					return BadRequest(ModelState);
 
+				if(!dto.ConsentToDataProcessing)
+					return BadRequest("Consent to data processing needed!");
+
 				var result = await _userService.RegisterUserAsync(dto);
 
 				return CreatedAtAction(nameof(GetProfile), new { userId = result.UserId }, result);
@@ -85,11 +89,9 @@ namespace CohesionX.UserManagement.Controllers
 
 					var validation = idValidation.ValidationResult;
 					if (validation is null ||
-						user.IdNumber is null ||
 						!validation.IdFormatValid ||
 						!validation.PhotoPresent ||
-						!idValidation.PhotoUploaded ||
-						user.IdNumber != idValidation.IdNumber)
+						!idValidation.PhotoUploaded)
 					{
 						return BadRequest(new { error = "ID document validation failed field checks." });
 					}
@@ -97,13 +99,11 @@ namespace CohesionX.UserManagement.Controllers
 
 				// Phone & Email check
 				var additional = verificationRequest.AdditionalVerification;
-				if (additional is null)
-					return BadRequest(new { error = "Additional verification is missing." });
 
-				if (requirements.RequirePhoneVerification && !additional.PhoneVerification)
+				if (requirements.RequirePhoneVerification && (additional is null || !additional.PhoneVerification))
 					return BadRequest(new { error = "Phone verification is required." });
 
-				if (requirements.RequireEmailVerification && !additional.EmailVerification)
+				if (requirements.RequireEmailVerification && (additional is null || !additional.EmailVerification))
 					return BadRequest(new { error = "Email verification is required." });
 
 				// Activate User
@@ -126,89 +126,112 @@ namespace CohesionX.UserManagement.Controllers
 			[FromQuery] int? maxWorkload,
 			[FromQuery] int? limit)
 		{
-			var availableUsersResp = new List<UserAvailabilityResponse>();
-			var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
-			if (!users.Any()) return Ok(availableUsersResp);
-
-			var cacheMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
-			var trendMap = await _eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
-			var availableUsers = users
-				.Where(u => cacheMap.ContainsKey(u.Id)
-						&& cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
-				.Select(u =>
-				{
-					var availability = cacheMap.ContainsKey(u.Id)
-						? cacheMap[u.Id]
-						: null;
-
-					return new AvailableUsersDto
-					{
-						UserId = u.Id,
-						EloRating = u.Statistics?.CurrentElo,
-						PeakElo = u.Statistics?.PeakElo,
-						DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
-						CurrentWorkload = availability?.CurrentWorkload,
-						RecentPerformance = trendMap[u.Id],
-						GamesPlayed = u.Statistics?.GamesPlayed,
-						Role = u.Role,
-						BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
-						LastActive = u.Statistics?.LastCalculated
-					};
-				})
-				.ToList();
-
-
-			return Ok(new UserAvailabilityResponse
+			try
 			{
-				AvailableUsers = availableUsers,
-				TotalAvailable = availableUsers.Count,
-				QueryTimestamp = DateTime.UtcNow
-			});
+				var availableUsersResp = new List<UserAvailabilityResponse>();
+				var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
+				if (!users.Any()) return Ok(availableUsersResp);
+
+				var cacheMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
+				var trendMap = await _eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
+				var availableUsers = users
+					.Where(u => cacheMap.ContainsKey(u.Id)
+							&& cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
+					.Select(u =>
+					{
+						var availability = cacheMap.ContainsKey(u.Id)
+							? cacheMap[u.Id]
+							: null;
+
+						return new AvailableUsersDto
+						{
+							UserId = u.Id,
+							EloRating = u.Statistics?.CurrentElo,
+							PeakElo = u.Statistics?.PeakElo,
+							DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
+							CurrentWorkload = availability?.CurrentWorkload,
+							RecentPerformance = trendMap[u.Id],
+							GamesPlayed = u.Statistics?.GamesPlayed,
+							Role = u.Role,
+							BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
+							LastActive = u.Statistics?.LastCalculated
+						};
+					})
+					.ToList();
+
+
+				return Ok(new UserAvailabilityResponse
+				{
+					AvailableUsers = availableUsers,
+					TotalAvailable = availableUsers.Count,
+					QueryTimestamp = DateTime.UtcNow
+				});
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpGet("{userId}/availability")]
 		public async Task<IActionResult> GetAvailability([FromRoute] Guid userId)
 		{
+			try
+			{
+				var availability = await _redisService.GetAvailabilityAsync(userId);
+				return Ok(availability == null ? "User availability Not Found" : availability);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
 
-			var availability = await _redisService.GetAvailabilityAsync(userId);
-			return Ok(availability == null ? "User Not Found" : availability);
+			}
 		}
 
 		[HttpPatch("{userId}/availability")]
 		public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateRequest availabilityUpdate)
 		{
-			var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-			var userAgent = Request.Headers["User-Agent"].ToString() ?? "unknown";
-			var existingAvailability = await _redisService.GetAvailabilityAsync(userId)
-								?? new UserAvailabilityRedisDto();
-
-			if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome)) return BadRequest("Invalid Status Provided.");
-			if (availabilityUpdate.MaxConcurrentJobs < 1) return BadRequest("Maximum concurrent job should be greater than 0");
-			if (availabilityUpdate != null)
+			try
 			{
-				existingAvailability.Status = availabilityUpdate.Status;
-				existingAvailability.MaxConcurrentJobs = availabilityUpdate.MaxConcurrentJobs;
+				var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+				var userAgent = Request.Headers["User-Agent"].ToString() ?? "unknown";
+				var existingAvailability = await _redisService.GetAvailabilityAsync(userId)
+									?? new UserAvailabilityRedisDto();
+
+				if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome)) return BadRequest("Invalid Status Provided.");
+				if (availabilityUpdate.MaxConcurrentJobs < 1) return BadRequest("Maximum concurrent job should be greater than 0");
+				if (availabilityUpdate != null)
+				{
+					existingAvailability.Status = availabilityUpdate.Status;
+					existingAvailability.MaxConcurrentJobs = availabilityUpdate.MaxConcurrentJobs;
+				}
+
+
+				existingAvailability.LastUpdate = DateTime.UtcNow;
+
+				// 1. Write to Redis
+				await _redisService.SetAvailabilityAsync(userId, existingAvailability);
+
+				// 2. Async sync to PostgreSQL for audit (simplified placeholder here)
+				_ = Task.Run(async () =>
+				{
+					await _userService.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
+				});
+
+				return Ok(new UserAvailabilityUpdateResponse
+				{
+					AvailabilityUpdated = "success",
+					CurrentStatus = existingAvailability.Status,
+					MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
+					LastUpdated = existingAvailability.LastUpdate
+				});
 			}
-
-
-			existingAvailability.LastUpdate = DateTime.UtcNow;
-
-			// 1. Write to Redis
-			await _redisService.SetAvailabilityAsync(userId, existingAvailability);
-
-			// 2. Async sync to PostgreSQL for audit (simplified placeholder here)
-			_ = Task.Run(async () =>
+			catch (Exception e)
 			{
-				await _userService.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
-			});
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
 
-			return Ok(new UserAvailabilityUpdateResponse
-			{
-				AvailabilityUpdated = "success",
-				CurrentStatus = existingAvailability.Status,
-				MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
-				LastUpdated = existingAvailability.LastUpdate
-			});
+			}
 		}
 
 		[HttpGet("{userId}/profile")]
@@ -322,18 +345,18 @@ namespace CohesionX.UserManagement.Controllers
 		}
 
 		[HttpGet("{userId}/professional-status")]
-		public IActionResult GetProfessionalStatus([FromRoute] Guid userId)
+		public async Task<IActionResult> GetProfessionalStatus([FromRoute] Guid userId)
 		{
-			// TODO: Implement get professional status logic
-			return Ok(new
+			try
 			{
-				userId,
-				isProfessional = false,
-				currentRole = "transcriber",
-				currentElo = 1367,
-				eligibleForProfessional = true,
-				eligibilityCriteria = new { minEloRequired = 1600, minJobsRequired = 500, userElo = 1367, userJobs = 247 }
-			});
+				var status = await _userService.GetProfessionalStatus(userId);
+				return Ok(status);
+			}
+			catch (Exception e)
+			{
+				return StatusCode(500, new { error = "An error occurred while processing your request." });
+
+			}
 		}
 
 		[HttpPost("check-professional-status")]

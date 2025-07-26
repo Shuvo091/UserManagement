@@ -1,4 +1,5 @@
 ﻿using SharedLibrary.AppEnums;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Domain.Entities;
 

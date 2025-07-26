@@ -9,6 +9,7 @@ namespace CohesionX.UserManagement.Application.Interfaces
 		Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto);
 		Task<bool> CheckIdNumber(Guid userId, string idNumber);
 		Task<UserProfileResponse> GetProfileAsync(Guid userId);
+		Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId);
 		Task<User> GetUserAsync(Guid userId);
 		Task<User> GetUserByEmailAsync(string email);
 		Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);

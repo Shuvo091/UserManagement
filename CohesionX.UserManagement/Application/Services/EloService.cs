@@ -15,6 +15,7 @@ public class EloService : IEloService
 	private readonly IUserStatisticsRepository _userStatRepo;
 	private readonly IMapper _mapper;
 	private readonly IUnitOfWork _unitOfWork;
+	private readonly IRedisService _redisService;
 	private readonly int _eloKFactorNew;
 	private readonly int _eloKFactorEstablished;
 	private readonly int _eloKFactorExpert;
@@ -23,6 +24,7 @@ public class EloService : IEloService
 		, IUserRepository userRepo
 		, IUserStatisticsRepository userStatRepo
 		, IUnitOfWork unitOfWork
+		, IRedisService redisService
 		, IMapper mapper
 		, IConfiguration config
 		, IWorkflowEngineClient workflowEngineClient)
@@ -30,6 +32,7 @@ public class EloService : IEloService
 		_repo = repo;
 		_userRepo = userRepo;
 		_unitOfWork = unitOfWork;
+		_redisService = redisService;
 		_userStatRepo = userStatRepo;
 		_mapper = mapper;
 		_eloKFactorNew = int.TryParse(config["ELO_K_FACTOR_NEW"], out int parsedValue) ? parsedValue : 32;
@@ -58,6 +61,9 @@ public class EloService : IEloService
 		if (userStatisticsDb == null || userStatisticsDb.Count != userIds.Count)
 			throw new Exception("Missing UserStatistics for some transcribers.");
 
+		if(request.RecommendedEloChanges.Count > 2)
+			throw new Exception("Unexpected number of elo change request found");
+
 		var eloHistoryRecords = new List<EloHistory>();
 
 		foreach (var eloChange in request.RecommendedEloChanges)
@@ -66,11 +72,11 @@ public class EloService : IEloService
 				.FirstOrDefault(us => us.UserId == eloChange.TranscriberId)
 				?? throw new Exception($"User statistics not found for user {eloChange.TranscriberId}");
 
-			// Validate current elo matches OldElo
-			if (userStats.CurrentElo != eloChange.OldElo)
-			{
-				throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
-			}
+			//// Validate current elo matches OldElo
+			//if (userStats.CurrentElo != eloChange.OldElo)
+			//{
+			//	throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
+			//}
 
 			var newElo = eloChange.OldElo + eloChange.RecommendedChange;
 
@@ -105,6 +111,22 @@ public class EloService : IEloService
 				NewElo = newElo,
 				EloChange = eloChange.RecommendedChange,
 				ComparisonOutcome = eloChange.ComparisonOutcome
+			});
+
+
+			// For redis update
+			var cutOffDate = DateTime.UtcNow.AddDays(-7);
+			var recentHistory = await _repo.FindAsync(
+				eh => eh.UserId == eloChange.TranscriberId && eh.ChangedAt >= cutOffDate
+			);
+			recentHistory.Add(eloHistoryRecord);
+			await _redisService.SetUserEloAsync(eloChange.TranscriberId, new UserEloRedisDto
+			{
+				CurrentElo = newElo,
+				PeakElo = userStats.PeakElo,
+				GamesPlayed = userStats.GamesPlayed,
+				RecentTrend = GetEloTrend(recentHistory, 7),
+				LastJobCompleted = eloHistoryRecord.ChangedAt // TODO: take last job completed at from job yable
 			});
 		}
 		_unitOfWork.UserStatistics.UpdateRange(userStatisticsDb);
@@ -333,7 +355,7 @@ public class EloService : IEloService
 		var userNotifications = new List<UserNotification>();
 
 		// We'll add tiebreaker's eloChange to original transcriber with minority outcome
-		foreach (var change in twuReq.ThreeWayEloChanges.Where(c => c.Role != ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName()))
+		foreach (var change in twuReq.ThreeWayEloChanges)
 		{
 			if (!EnumDisplayHelper.TryParseDisplayName(change.Role, out ThreeWayTranscriberRoleType roleEnum))
 				throw new Exception($"Invalid user role provided");
@@ -345,12 +367,6 @@ public class EloService : IEloService
 
 			var eloChangeAdjusted = change.EloChange;
 
-			// If this original transcriber is a minority winner or minority loser, adjust eloChange by adding tiebreaker's eloChange
-			if (outcomeEnum == GameOutcomeType.MinorityWinner || outcomeEnum == GameOutcomeType.MinorityLoser)
-			{
-				eloChangeAdjusted += tiebreakerChange.EloChange;
-			}
-
 			var oldEloVal = stats.CurrentElo;
 			var newElo = oldEloVal + eloChangeAdjusted;
 
@@ -360,7 +376,7 @@ public class EloService : IEloService
 			stats.LastCalculated = DateTime.UtcNow;
 			stats.UpdatedAt = DateTime.UtcNow;
 
-			eloHistories.Add(new EloHistory
+			var eloHistoryRecord = new EloHistory
 			{
 				UserId = stats.UserId,
 				OldElo = oldEloVal,
@@ -372,7 +388,8 @@ public class EloService : IEloService
 				ComparisonType = "three_way",
 				KFactorUsed = CalculateKFactor(stats.GamesPlayed),
 				ChangedAt = DateTime.UtcNow
-			});
+			};
+			eloHistories.Add(eloHistoryRecord);
 
 			updateResults.Add(new EloUpdateResult
 			{
@@ -389,38 +406,20 @@ public class EloService : IEloService
 					? $"Great job! Your Elo rating increased by {eloChangeAdjusted} points to {newElo}."
 					: $"Your Elo rating decreased by {Math.Abs(eloChangeAdjusted)} points to {newElo}. Review the feedback for improvement tips."
 			});
-		}
 
-		// Handle tiebreaker transcriber bonus (no Elo update, just bonus if any)
-		var tiebreakerStats = userStatsDb.First(u => u.UserId == tiebreakerChange.TranscriberId);
-
-		if (tiebreakerChange.TiebreakerBonus?.Applied == true && tiebreakerChange.TiebreakerBonus.BonusAmount > 0)
-		{
-			var oldElo = tiebreakerStats.CurrentElo;
-			tiebreakerStats.CurrentElo += tiebreakerChange.TiebreakerBonus.BonusAmount;
-			tiebreakerStats.PeakElo = Math.Max(tiebreakerStats.PeakElo, tiebreakerStats.CurrentElo);
-			tiebreakerStats.LastCalculated = DateTime.UtcNow;
-			tiebreakerStats.UpdatedAt = DateTime.UtcNow;
-
-			eloHistories.Add(new EloHistory
+			// For redis update
+			var cutOffDate = DateTime.UtcNow.AddDays(-7);
+			var recentHistory = await _repo.FindAsync(
+				eh => eh.UserId == change.TranscriberId && eh.ChangedAt >= cutOffDate
+			);
+			recentHistory.Add(eloHistoryRecord);
+			await _redisService.SetUserEloAsync(change.TranscriberId, new UserEloRedisDto
 			{
-				UserId = tiebreakerStats.UserId,
-				OldElo = oldElo,
-				NewElo = tiebreakerStats.CurrentElo,
-				Reason = "tiebreaker_bonus",
-				Outcome = tiebreakerChange.Outcome,
-				ComparisonId = twuReq.TiebreakerComparisonId,
-				JobId = twuReq.WorkflowRequestId,
-				ComparisonType = "tiebreaker_bonus",
-				KFactorUsed = 0,
-				ChangedAt = DateTime.UtcNow
-			});
-
-			userNotifications.Add(new UserNotification
-			{
-				UserId = tiebreakerStats.UserId,
-				NotificationType = "elo_bonus",
-				Message = $"You received a bonus of {tiebreakerChange.TiebreakerBonus.BonusAmount} Elo for tiebreaker participation."
+				CurrentElo = newElo,
+				PeakElo = stats.PeakElo,
+				GamesPlayed = stats.GamesPlayed,
+				RecentTrend = GetEloTrend(recentHistory, 7),
+				LastJobCompleted = eloHistoryRecord.ChangedAt // TODO: take last job completed at from job yable
 			});
 		}
 
