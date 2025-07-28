@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Controllers;
 using CohesionX.UserManagement.Application.Interfaces;
-using SharedLibrary.RequestResponseModels.UserManagement;
 using CohesionX.UserManagement.Domain.Entities;
 using System.Collections.Generic;
 using System.Linq;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 public class EloUpdateControllerTests
 {
