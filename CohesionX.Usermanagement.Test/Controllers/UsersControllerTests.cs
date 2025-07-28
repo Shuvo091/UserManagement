@@ -1,19 +1,13 @@
 // xUnit test setup for UsersController
-using Xunit;
-using Moq;
-using System;
-using System.Threading.Tasks;
+using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Controllers;
+using CohesionX.UserManagement.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Http;
-using CohesionX.UserManagement.Controllers;
-using CohesionX.UserManagement.Application.Interfaces;
-using SharedLibrary.RequestResponseModels.UserManagement;
-using SharedLibrary.AppEnums;
-using CohesionX.UserManagement.Domain.Entities;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using System.Linq;
+using Moq;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 public class UsersControllerTests
 {
@@ -171,4 +165,75 @@ public class UsersControllerTests
 		var ok = Assert.IsType<OkObjectResult>(result);
 		Assert.Equal(eloData, ok.Value);
 	}
+
+	[Fact]
+	public async Task Register_ReturnsBadRequest_WhenEmailInvalid()
+	{
+		var request = new UserRegisterRequest
+		{
+			FirstName = "A",
+			LastName = "B",
+			Email = "invalid-email",
+			Password = "123",
+			ConsentToDataProcessing = true
+		};
+
+		_userServiceMock.Setup(x => x.RegisterUserAsync(request))
+			.ThrowsAsync(new ArgumentException("Invalid email"));
+
+		var result = await _controller.Register(request);
+		var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+		Assert.Contains("Invalid email", badRequest.Value.ToString());
+	}
+
+
+	[Fact]
+	public async Task GetProfile_ReturnsUnauthorized_WhenUserNotAuthenticated()
+	{
+		_controller.ControllerContext = new ControllerContext
+		{
+			HttpContext = new DefaultHttpContext()
+		};
+
+		var result = await _controller.GetProfile(Guid.NewGuid());
+		Assert.IsType<UnauthorizedResult>(result);
+	}
+
+
+	[Fact]
+	public async Task GetAvailability_ReturnsServerError_WhenRedisFails()
+	{
+		var userId = Guid.NewGuid();
+		_redisServiceMock.Setup(x => x.GetAvailabilityAsync(userId)).ThrowsAsync(new Exception("Redis down"));
+
+		var result = await _controller.GetAvailability(userId);
+
+		var objectResult = Assert.IsType<ObjectResult>(result);
+		Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+		Assert.Contains("Redis down", objectResult.Value.ToString());
+	}
+
+
+	[Fact]
+	public async Task Register_ReturnsServerError_WhenServiceThrows()
+	{
+		var request = new UserRegisterRequest
+		{
+			FirstName = "X",
+			LastName = "Y",
+			Email = "xy@z.com",
+			Password = "123",
+			ConsentToDataProcessing = true
+		};
+
+		_userServiceMock.Setup(x => x.RegisterUserAsync(request))
+			.ThrowsAsync(new InvalidOperationException("DB insert failed"));
+
+		var result = await _controller.Register(request);
+
+		var objectResult = Assert.IsType<ObjectResult>(result);
+		Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+		Assert.Contains("DB insert failed", objectResult.Value.ToString());
+	}
+
 }

@@ -1,14 +1,8 @@
 ﻿// xUnit test setup for EloUpdateController
-using Xunit;
 using Moq;
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Controllers;
 using CohesionX.UserManagement.Application.Interfaces;
-using CohesionX.UserManagement.Domain.Entities;
-using System.Collections.Generic;
-using System.Linq;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
 public class EloUpdateControllerTests
@@ -128,4 +122,45 @@ public class EloUpdateControllerTests
 		Assert.Equal(500, status.StatusCode);
 		Assert.Contains("error", status.Value.ToString());
 	}
+
+	[Fact]
+	public async Task EloUpdate_ReturnsBadRequest_WhenEloChangeListInvalid()
+	{
+		var request = new EloUpdateRequest
+		{
+			WorkflowRequestId = "workflow_123",
+			QaComparisonId = Guid.NewGuid(),
+			RecommendedEloChanges = null, // or include invalid entries
+			ComparisonMetadata = new ComparisonMetadataDto()
+		};
+
+		_eloServiceMock.Setup(x => x.ApplyEloUpdatesAsync(It.IsAny<EloUpdateRequest>()))
+			.ThrowsAsync(new ArgumentException("RecommendedEloChanges is required"));
+
+		var result = await _eloController.EloUpdate(request);
+
+		var bad = Assert.IsType<BadRequestObjectResult>(result);
+		Assert.Contains("RecommendedEloChanges is required", bad.Value.ToString());
+	}
+
+
+	[Fact]
+	public async Task ThreeWayResolution_ReturnsBadRequest_WhenWorkflowIdMissing()
+	{
+		var request = new ThreeWayEloUpdateRequest
+		{
+			WorkflowRequestId = null,
+			OriginalComparisonId = Guid.NewGuid(),
+			ThreeWayEloChanges = new()
+		};
+
+		_eloServiceMock.Setup(x => x.ResolveThreeWay(It.IsAny<ThreeWayEloUpdateRequest>()))
+			.ThrowsAsync(new ArgumentException("WorkflowRequestId is required"));
+
+		var result = await _eloController.ThreeWayResolution(request);
+
+		var bad = Assert.IsType<BadRequestObjectResult>(result);
+		Assert.Contains("WorkflowRequestId is required", bad.Value.ToString());
+	}
+
 }
