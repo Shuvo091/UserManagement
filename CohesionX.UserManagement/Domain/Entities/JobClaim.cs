@@ -28,7 +28,7 @@ public class JobClaim : BaseEntity
 	public DateTime BookOutExpiresAt { get; set; }
 
 	/// <summary>
-	/// Gets or sets the status of the job claim 
+	/// Gets or sets the status of the job claim
 	/// (e.g., "claimed", "completed", "expired", "released").
 	/// </summary>
 	public string Status { get; set; } = default!;
@@ -39,7 +39,7 @@ public class JobClaim : BaseEntity
 	public DateTime CreatedAt { get; set; }
 
 	/// <summary>
-	/// Navigation property to the user who claimed the job.
+	/// Gets or sets navigation property to the user who claimed the job.
 	/// </summary>
 	public User User { get; set; } = default!;
 }

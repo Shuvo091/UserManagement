@@ -1,5 +1,5 @@
-﻿using CohesionX.UserManagement.Domain.Entities;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
+using CohesionX.UserManagement.Domain.Entities;
 
 namespace CohesionX.UserManagement.Persistence.Interfaces;
 

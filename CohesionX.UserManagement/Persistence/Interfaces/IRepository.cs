@@ -6,7 +6,8 @@ namespace CohesionX.UserManagement.Persistence.Interfaces;
 /// Generic repository interface defining common data access methods for entities of type <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">The entity type.</typeparam>
-public interface IRepository<T> where T : class
+public interface IRepository<T>
+    where T : class
 {
 	/// <summary>
 	/// Retrieves an entity by its unique identifier.

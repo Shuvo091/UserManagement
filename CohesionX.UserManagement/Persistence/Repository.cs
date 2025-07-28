@@ -1,6 +1,6 @@
-﻿using CohesionX.UserManagement.Persistence.Interfaces;
+﻿using System.Linq.Expressions;
+using CohesionX.UserManagement.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
 namespace CohesionX.UserManagement.Persistence
 {
@@ -8,12 +8,13 @@ namespace CohesionX.UserManagement.Persistence
 	/// Generic repository implementation providing basic CRUD operations for entities of type <typeparamref name="T"/>.
 	/// </summary>
 	/// <typeparam name="T">The entity type.</typeparam>
-	public class Repository<T> : IRepository<T> where T : class
+	public class Repository<T> : IRepository<T>
+	    where T : class
 	{
 		/// <summary>
 		/// The Entity Framework database context.
 		/// </summary>
-		protected readonly DbContext _context;
+		private readonly DbContext _context;
 
 		/// <summary>
 		/// The <see cref="DbSet{T}"/> representing the collection of entities in the context.

@@ -1,8 +1,8 @@
-﻿using CohesionX.UserManagement.Application.Interfaces;
+﻿using System.Security.Claims;
+using CohesionX.UserManagement.Application.Interfaces;
 using CohesionX.UserManagement.Domain.Entities;
 using IdentityServer4.Models;
 using IdentityServer4.Validation;
-using System.Security.Claims;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -29,6 +29,7 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
 	/// Validates the resource owner password credentials and sets the authentication result.
 	/// </summary>
 	/// <param name="context">The validation context containing username and password.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	public async Task ValidateAsync(ResourceOwnerPasswordValidationContext context)
 	{
 		var user = await _userService.GetUserByEmailAsync(context.UserName);
@@ -39,7 +40,7 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
 			return;
 		}
 
-		if (!_passwordHasher.VerifyPassword(context.Password, user.PasswordHash))
+		if (!_passwordHasher.VerifyPassword(user, context.Password, user.PasswordHash))
 		{
 			context.Result = new GrantValidationResult(TokenRequestErrors.InvalidGrant, "Invalid username or password");
 			return;

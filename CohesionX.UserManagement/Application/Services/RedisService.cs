@@ -1,7 +1,7 @@
-﻿using SharedLibrary.RequestResponseModels.UserManagement;
-using SharedLibrary.Cache.Services.Interfaces;
-using System.Text.Json;
+﻿using System.Text.Json;
 using CohesionX.UserManagement.Application.Interfaces;
+using SharedLibrary.Cache.Services.Interfaces;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -28,44 +28,22 @@ public class RedisService : IRedisService
 		// Read TTL in minutes from config, fallback to 360 minutes (6 hours) if missing or invalid
 		var ttlMinutesStr = configuration["REDIS_CACHE_TTL_MINUTES"];
 		if (!int.TryParse(ttlMinutesStr, out var ttlMinutes))
+		{
 			ttlMinutes = 360;
+		}
 
 		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutes);
 	}
-
-	/// <summary>
-	/// Gets the cache key for user availability.
-	/// </summary>
-	/// <param name="userId">The user's unique identifier.</param>
-	/// <returns>The cache key string.</returns>
-	private string GetAvailabilityKey(Guid userId) => $"user:availability:{userId}";
-
-	/// <summary>
-	/// Gets the cache key for job claim lock.
-	/// </summary>
-	/// <param name="jobId">The job's unique identifier.</param>
-	/// <returns>The cache key string.</returns>
-	private string GetJobClaimLockKey(string jobId) => $"job:claim:lock:{jobId}";
-
-	/// <summary>
-	/// Gets the cache key for user claims.
-	/// </summary>
-	/// <param name="userId">The user's unique identifier.</param>
-	/// <returns>The cache key string.</returns>
-	private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
-
-	/// <summary>
-	/// Gets the cache key for user Elo data.
-	/// </summary>
-	/// <param name="userId">The user's unique identifier.</param>
-	/// <returns>The cache key string.</returns>
-	private string GetUserEloKey(Guid userId) => $"user:elo:{userId}";
 
 	/// <inheritdoc />
 	public async Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetAvailabilityKey(userId));
-		if (string.IsNullOrWhiteSpace(json)) return null;
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return null;
+		}
+
 		return JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
 	}
 
@@ -81,7 +59,11 @@ public class RedisService : IRedisService
 	{
 		var key = GetJobClaimLockKey(jobId);
 		var existing = await _cache.GetAsync<string>(key);
-		if (!string.IsNullOrEmpty(existing)) return false;
+		if (!string.IsNullOrEmpty(existing))
+		{
+			return false;
+		}
+
 		await _cache.SetAsync(key, $"{userId}_claiming_{jobId}", _jobClaimLockTtl);
 		return true;
 	}
@@ -96,7 +78,11 @@ public class RedisService : IRedisService
 	public async Task<List<string>> GetUserClaimsAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetUserClaimsKey(userId));
-		if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return new List<string>();
+		}
+
 		var jobs = JsonSerializer.Deserialize<List<string>>(json);
 		return jobs ?? new List<string>();
 	}
@@ -106,7 +92,11 @@ public class RedisService : IRedisService
 	{
 		var key = GetUserClaimsKey(userId);
 		var existing = await GetUserClaimsAsync(userId);
-		if (!existing.Contains(jobId)) existing.Add(jobId);
+		if (!existing.Contains(jobId))
+		{
+			existing.Add(jobId);
+		}
+
 		var json = JsonSerializer.Serialize(existing);
 		await _cache.SetAsync(key, json, _userClaimsTtl);
 	}
@@ -161,11 +151,40 @@ public class RedisService : IRedisService
 			{
 				var availability = JsonSerializer.Deserialize<UserAvailabilityRedisDto>(availabilityJson);
 				if (availability != null)
+				{
 					availabilityMap[userId] = availability;
+				}
 			}
 		}
 
 		return availabilityMap;
 	}
 
+	/// <summary>
+	/// Gets the cache key for user availability.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
+	private string GetAvailabilityKey(Guid userId) => $"user:availability:{userId}";
+
+	/// <summary>
+	/// Gets the cache key for job claim lock.
+	/// </summary>
+	/// <param name="jobId">The job's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
+	private string GetJobClaimLockKey(string jobId) => $"job:claim:lock:{jobId}";
+
+	/// <summary>
+	/// Gets the cache key for user claims.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
+	private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
+
+	/// <summary>
+	/// Gets the cache key for user Elo data.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
+	private string GetUserEloKey(Guid userId) => $"user:elo:{userId}";
 }

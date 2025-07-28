@@ -1,10 +1,11 @@
-﻿using AutoMapper;
-using SharedLibrary.RequestResponseModels.UserManagement;
-using SharedLibrary.AppEnums;
-using System.Text.Json;
+﻿using System.Text.Json;
+using AutoMapper;
 using CohesionX.UserManagement.Application.Interfaces;
 using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence.Interfaces;
+using Microsoft.AspNetCore.Identity;
+using SharedLibrary.AppEnums;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -25,6 +26,13 @@ public class UserService : IUserService
 	/// <summary>
 	/// Initializes a new instance of the <see cref="UserService"/> class.
 	/// </summary>
+	/// <param name="repo">Repository for managing user data persistence and retrieval.</param>
+	/// <param name="auditLogRepo">Repository for logging user-related audit events and changes.</param>
+	/// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
+	/// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
+	/// <param name="passwordHasher">Utility for securely hashing and verifying user passwords.</param>
+	/// <param name="configuration">Application configuration used to retrieve settings and secrets.</param>
+	/// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
 	public UserService(
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
@@ -40,15 +48,27 @@ public class UserService : IUserService
 		_passwordHasher = passwordHasher;
 		_eloService = eloService;
 		var initEloStr = configuration["INITIAL_ELO_RATING"];
-		if (!int.TryParse(initEloStr, out var initElo)) initElo = 360;
+		if (!int.TryParse(initEloStr, out var initElo))
+		{
+			initElo = 360;
+		}
+
 		_initElo = initElo;
 
 		var initMinEloProStr = configuration["MIN_ELO_REQUIRED_FOR_PRO"];
-		if (!int.TryParse(initMinEloProStr, out var minElo)) minElo = 1600;
+		if (!int.TryParse(initMinEloProStr, out var minElo))
+		{
+			minElo = 1600;
+		}
+
 		_minEloRequiredForPro = minElo;
 
 		var initMinJobsProStr = configuration["MIN_JOBS_REQUIRED_FOR_PRO"];
-		if (!int.TryParse(initMinJobsProStr, out var minJobs)) minJobs = 500;
+		if (!int.TryParse(initMinJobsProStr, out var minJobs))
+		{
+			minJobs = 500;
+		}
+
 		_minJobsRequiredForPro = minJobs;
 	}
 
@@ -82,15 +102,15 @@ public class UserService : IUserService
 			LastName = dto.LastName,
 			Email = dto.Email,
 			UserName = dto.Email,
-			PasswordHash = _passwordHasher.HashPassword(dto.Password),
 			Phone = dto.Phone,
 			IdNumber = dto.IdNumber,
 			CreatedAt = DateTime.UtcNow,
 			UpdatedAt = DateTime.UtcNow,
 			Status = UserStatusType.PendingVerification.ToDisplayName(),
 			Role = UserRoleType.Transcriber.ToDisplayName(),
-			IsProfessional = false
+			IsProfessional = false,
 		};
+		user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
 
 		// Add dialect preferences
 		if (dto.DialectPreferences != null && dto.DialectPreferences.Any())
@@ -100,9 +120,9 @@ public class UserService : IUserService
 				user.Dialects.Add(new UserDialect
 				{
 					Dialect = dialect,
-					ProficiencyLevel = dto.LanguageExperience ?? "",
+					ProficiencyLevel = dto.LanguageExperience ?? string.Empty,
 					IsPrimary = false,
-					CreatedAt = DateTime.UtcNow
+					CreatedAt = DateTime.UtcNow,
 				});
 			}
 		}
@@ -115,13 +135,13 @@ public class UserService : IUserService
 			GamesPlayed = 0,
 			LastCalculated = DateTime.UtcNow,
 			CreatedAt = DateTime.UtcNow,
-			UpdatedAt = DateTime.UtcNow
+			UpdatedAt = DateTime.UtcNow,
 		};
 
 		// Attempt activation
 		var verificationRequired = new List<string>
 		{
-			"id_document_upload"
+			"id_document_upload",
 		};
 
 		await _repo.AddAsync(user);
@@ -133,7 +153,7 @@ public class UserService : IUserService
 			EloRating = user.Statistics.CurrentElo,
 			Status = user.Status,
 			ProfileUri = $"/api/v1/users/{user.Id}/profile",
-			VerificationRequired = verificationRequired
+			VerificationRequired = verificationRequired,
 		};
 	}
 
@@ -145,7 +165,10 @@ public class UserService : IUserService
 	public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
-		if (user == null) throw new KeyNotFoundException("User not found");
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
 
 		var stats = user.Statistics;
 		var eloHistories = user.EloHistories;
@@ -180,8 +203,8 @@ public class UserService : IUserService
 				Progress = new ProfessionalProgressDto
 				{
 					EloProgress = $"{currentElo}/{_minEloRequiredForPro}",
-					JobsProgress = $"{totalJobs}/{_minJobsRequiredForPro}"
-				}
+					JobsProgress = $"{totalJobs}/{_minJobsRequiredForPro}",
+				},
 			},
 			Statistics = new UserStatisticsDto
 			{
@@ -194,15 +217,15 @@ public class UserService : IUserService
 				{
 					JobsCompleted = jobsLast30Days,
 					EloChange = eloTrend30,
-					Earnings = 0 // TODO: Calculate
-				}
+					Earnings = 0, // TODO: Calculate
+				},
 			},
 			Preferences = new UserPreferencesDto
 			{
 				MaxConcurrentJobs = 3,
 				DialectPreferences = user.Dialects.Select(d => d.Dialect).ToList(),
-				PreferredJobTypes = [] // TODO: Where to get preferred job type
-			}
+				PreferredJobTypes = [], // TODO: Where to get preferred job type
+			},
 		};
 
 		return dto;
@@ -216,7 +239,10 @@ public class UserService : IUserService
 	public async Task<User> GetUserAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
-		if (user == null) throw new KeyNotFoundException("User not found");
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
 
 		return user;
 	}
@@ -229,7 +255,10 @@ public class UserService : IUserService
 	public async Task<User> GetUserByEmailAsync(string email)
 	{
 		var user = await _repo.GetUserByEmailAsync(email);
-		if (user == null) throw new KeyNotFoundException("User not found");
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
 
 		return user;
 	}
@@ -256,6 +285,7 @@ public class UserService : IUserService
 	/// <param name="existingAvailability">The current availability data.</param>
 	/// <param name="ipAddress">The IP address of the request.</param>
 	/// <param name="userAgent">The user agent string of the request.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
 	{
 		await _auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
@@ -278,7 +308,7 @@ public class UserService : IUserService
 			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
 			VerificationData = JsonSerializer.Serialize(verificationDto),
 			VerifiedAt = DateTime.UtcNow,
-			CreatedAt = DateTime.UtcNow
+			CreatedAt = DateTime.UtcNow,
 		};
 		user.VerificationRecords.Add(verificationRecord);
 		_repo.Update(user);
@@ -294,7 +324,7 @@ public class UserService : IUserService
 			ActivatedAt = DateTime.UtcNow,
 			VerificationLevel = verificationRecord.VerificationLevel,
 			NextSteps = ["profile_completion", "job_browsing"],
-			RoadmapNote = "V2 will include automated ID verification via Department of Home Affairs"
+			RoadmapNote = "V2 will include automated ID verification via Department of Home Affairs",
 		};
 		return response;
 	}
@@ -308,7 +338,11 @@ public class UserService : IUserService
 	public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
 	{
 		var user = await _repo.GetUserByIdAsync(userId);
-		if (user == null) return false;
+		if (user == null)
+		{
+			return false;
+		}
+
 		return user.IdNumber == idNumber;
 	}
 
@@ -319,6 +353,7 @@ public class UserService : IUserService
 	/// <param name="claimId">The claim identifier.</param>
 	/// <param name="claimJobRequest">The job claim request details.</param>
 	/// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
 	{
 		var jobClaim = new JobClaim
@@ -329,7 +364,7 @@ public class UserService : IUserService
 			ClaimedAt = claimJobRequest.ClaimTimestamp,
 			BookOutExpiresAt = bookouExpiresAt,
 			Status = JobClaimStatus.Pending.ToDisplayName(),
-			CreatedAt = DateTime.UtcNow
+			CreatedAt = DateTime.UtcNow,
 		};
 		jobClaim = await _jobClaimRepo.AddJobClaimAsync(jobClaim);
 		await _jobClaimRepo.SaveChangesAsync();
@@ -349,6 +384,7 @@ public class UserService : IUserService
 		{
 			throw new Exception("User not found");
 		}
+
 		return new ValidateTiebreakerClaimResponse
 		{
 			TiebreakerClaimValidated = user != null && claim != null && user.Statistics != null
@@ -359,7 +395,7 @@ public class UserService : IUserService
 			IsOriginalTranscriber = validationReq.OriginalTranscribers.Contains(userId),
 			ClaimId = claim!.Id.ToString(),
 			BonusConfirmed = true, // TODO: Calculate
-			EstimatedCompletion = "" // TODO: Calculate based on job complexity
+			EstimatedCompletion = string.Empty, // TODO: Calculate based on job complexity
 		};
 	}
 
@@ -374,13 +410,19 @@ public class UserService : IUserService
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
 		var authorizedBy = await _repo.GetUserByIdAsync(validationReq.AuthorizedBy);
 		if (user == null)
+		{
 			throw new KeyNotFoundException("User not found");
+		}
 
 		if (authorizedBy == null)
+		{
 			throw new KeyNotFoundException("Authorizer not found");
+		}
 
 		if (authorizedBy.Role != UserRoleType.Admin.ToDisplayName())
+		{
 			throw new KeyNotFoundException("Authorizer must be an admin");
+		}
 
 		var previousRole = user.Role;
 
@@ -393,7 +435,7 @@ public class UserService : IUserService
 			Status = VerificationStatusType.Approved.ToDisplayName(),
 			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
 			VerifiedAt = DateTime.UtcNow,
-			CreatedAt = DateTime.UtcNow
+			CreatedAt = DateTime.UtcNow,
 		});
 		user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
 
@@ -407,7 +449,7 @@ public class UserService : IUserService
 			IsProfessional = user.IsProfessional,
 			PreviousRole = previousRole,
 			NewRole = user.Role,
-			EffectiveFrom = DateTime.UtcNow
+			EffectiveFrom = DateTime.UtcNow,
 		};
 	}
 
@@ -430,8 +472,15 @@ public class UserService : IUserService
 	private List<string> GetMissingCriteria(int elo, int totalJobs)
 	{
 		List<string> missingCriteria = [];
-		if (elo < _minEloRequiredForPro) missingCriteria.Add("elo_rating");
-		if (totalJobs < _minJobsRequiredForPro) missingCriteria.Add("total_jobs");
+		if (elo < _minEloRequiredForPro)
+		{
+			missingCriteria.Add("elo_rating");
+		}
+
+		if (totalJobs < _minJobsRequiredForPro)
+		{
+			missingCriteria.Add("total_jobs");
+		}
 
 		return missingCriteria;
 	}

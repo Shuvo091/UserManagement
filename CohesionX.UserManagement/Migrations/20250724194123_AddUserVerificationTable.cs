@@ -22,7 +22,7 @@ namespace CohesionX.UserManagement.Migrations
                     RequireEmailVerification = table.Column<bool>(type: "boolean", nullable: false),
                     VerificationLevel = table.Column<string>(type: "text", nullable: false),
                     ValidationRulesJson = table.Column<string>(type: "text", nullable: false),
-                    Reason = table.Column<string>(type: "text", nullable: false)
+                    Reason = table.Column<string>(type: "text", nullable: false),
                 },
                 constraints: table =>
                 {

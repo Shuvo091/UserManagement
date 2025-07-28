@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using SharedLibrary.RequestResponseModels.UserManagement;
-using SharedLibrary.AppEnums;
 using CohesionX.UserManagement.Application.Interfaces;
 using CohesionX.UserManagement.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SharedLibrary.AppEnums;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -24,6 +24,12 @@ namespace CohesionX.UserManagement.Controllers
 		/// <summary>
 		/// Initializes a new instance of the <see cref="UsersController"/> class.
 		/// </summary>
+		/// <param name="userService">Service that handles user-related operations such as registration, updates, and retrieval.</param>
+		/// <param name="eloService">Service that manages Elo rating calculations and history.</param>
+		/// <param name="redisService">Service for managing Redis-based caching and availability tracking.</param>
+		/// <param name="configuration">Application configuration used to access settings.</param>
+		/// <param name="serviceScopeFactory">Factory for creating service scopes, used for resolving scoped services inside background tasks.</param>
+		/// <param name="verificationRequirementService">Service to manage and retrieve verification requirements and policies.</param>
 		public UsersController(
 			IUserService userService,
 			IEloService eloService,
@@ -37,7 +43,11 @@ namespace CohesionX.UserManagement.Controllers
 			_verificationRequirementService = verificationRequirementService;
 			_redisService = redisService;
 			var defaultBookoutStr = configuration["DEFAULT_BOOKOUT_MINUTES"];
-			if (!int.TryParse(defaultBookoutStr, out var defaultBookout)) defaultBookout = 480;
+			if (!int.TryParse(defaultBookoutStr, out var defaultBookout))
+			{
+				defaultBookout = 480;
+			}
+
 			_defaultBookoutInMinutes = defaultBookout;
 			_serviceScopeFactory = serviceScopeFactory;
 		}
@@ -54,16 +64,20 @@ namespace CohesionX.UserManagement.Controllers
 			try
 			{
 				if (!ModelState.IsValid)
+				{
 					return BadRequest(ModelState);
+				}
 
 				if (!dto.ConsentToDataProcessing)
+				{
 					return BadRequest("Consent to data processing needed!");
+				}
 
 				var result = await _userService.RegisterUserAsync(dto);
 
 				return CreatedAtAction(nameof(GetProfile), new { userId = result.UserId }, result);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -82,11 +96,15 @@ namespace CohesionX.UserManagement.Controllers
 			{
 				var requirements = await _verificationRequirementService.GetVerificationRequirement();
 				if (requirements is null)
+				{
 					return BadRequest(new { error = "Verification requirements not configured." });
+				}
 
 				var user = await _userService.GetUserAsync(userId);
 				if (user is null)
+				{
 					return NotFound(new { error = "User not found." });
+				}
 
 				// Type check
 				if (requirements.RequireIdDocument &&
@@ -100,7 +118,9 @@ namespace CohesionX.UserManagement.Controllers
 				if (requirements.RequireIdDocument)
 				{
 					if (idValidation is null || !idValidation.Enabled)
+					{
 						return BadRequest(new { error = "ID document validation must be enabled." });
+					}
 
 					var validation = idValidation.ValidationResult;
 					if (validation is null ||
@@ -116,10 +136,14 @@ namespace CohesionX.UserManagement.Controllers
 				var additional = verificationRequest.AdditionalVerification;
 
 				if (requirements.RequirePhoneVerification && (additional is null || !additional.PhoneVerification))
+				{
 					return BadRequest(new { error = "Phone verification is required." });
+				}
 
 				if (requirements.RequireEmailVerification && (additional is null || !additional.EmailVerification))
+				{
 					return BadRequest(new { error = "Email verification is required." });
+				}
 
 				// Activate User
 				var response = await _userService.ActivateUser(user, verificationRequest);
@@ -153,7 +177,10 @@ namespace CohesionX.UserManagement.Controllers
 			{
 				var availableUsersResp = new List<UserAvailabilityResponse>();
 				var users = await _userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
-				if (!users.Any()) return Ok(availableUsersResp);
+				if (!users.Any())
+				{
+					return Ok(availableUsersResp);
+				}
 
 				var cacheMap = await _redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
 				var trendMap = await _eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
@@ -177,7 +204,7 @@ namespace CohesionX.UserManagement.Controllers
 							GamesPlayed = u.Statistics?.GamesPlayed,
 							Role = u.Role,
 							BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
-							LastActive = u.Statistics?.LastCalculated
+							LastActive = u.Statistics?.LastCalculated,
 						};
 					})
 					.ToList();
@@ -186,10 +213,10 @@ namespace CohesionX.UserManagement.Controllers
 				{
 					AvailableUsers = availableUsers,
 					TotalAvailable = availableUsers.Count,
-					QueryTimestamp = DateTime.UtcNow
+					QueryTimestamp = DateTime.UtcNow,
 				});
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -208,7 +235,7 @@ namespace CohesionX.UserManagement.Controllers
 				var availability = await _redisService.GetAvailabilityAsync(userId);
 				return Ok(availability == null ? "User availability Not Found" : availability);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -230,8 +257,16 @@ namespace CohesionX.UserManagement.Controllers
 				var existingAvailability = await _redisService.GetAvailabilityAsync(userId)
 									?? new UserAvailabilityRedisDto();
 
-				if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome)) return BadRequest("Invalid Status Provided.");
-				if (availabilityUpdate.MaxConcurrentJobs < 1) return BadRequest("Maximum concurrent job should be greater than 0");
+				if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome))
+				{
+					return BadRequest("Invalid Status Provided.");
+				}
+
+				if (availabilityUpdate.MaxConcurrentJobs < 1)
+				{
+					return BadRequest("Maximum concurrent job should be greater than 0");
+				}
+
 				if (availabilityUpdate != null)
 				{
 					existingAvailability.Status = availabilityUpdate.Status;
@@ -254,10 +289,10 @@ namespace CohesionX.UserManagement.Controllers
 					AvailabilityUpdated = "success",
 					CurrentStatus = existingAvailability.Status,
 					MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
-					LastUpdated = existingAvailability.LastUpdate
+					LastUpdated = existingAvailability.LastUpdate,
 				});
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -276,7 +311,7 @@ namespace CohesionX.UserManagement.Controllers
 				var profile = await _userService.GetProfileAsync(userId);
 				return Ok(profile);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -295,7 +330,7 @@ namespace CohesionX.UserManagement.Controllers
 				var profile = await _eloService.GetEloHistoryAsync(userId);
 				return Ok(profile);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -318,10 +353,12 @@ namespace CohesionX.UserManagement.Controllers
 				{
 					return BadRequest(new { error = "User is currently unavailable for work." });
 				}
+
 				if (availability.CurrentWorkload >= availability.MaxConcurrentJobs)
 				{
 					return BadRequest(new { error = "User already has maximum concurrent jobs." });
 				}
+
 				var tryLockJobClaim = await _redisService.TryClaimJobAsync(claimJobRequest.JobId, userId);
 				if (!tryLockJobClaim)
 				{
@@ -340,7 +377,7 @@ namespace CohesionX.UserManagement.Controllers
 					UserAvailability = availability.Status,
 					CurrentWorkload = availability.CurrentWorkload,
 					MaxConcurrentJobs = availability.MaxConcurrentJobs,
-					CapacityReservedUntil = DateTime.UtcNow.AddMinutes(_defaultBookoutInMinutes)
+					CapacityReservedUntil = DateTime.UtcNow.AddMinutes(_defaultBookoutInMinutes),
 				};
 
 				// Fire-and-forget task
@@ -349,14 +386,7 @@ namespace CohesionX.UserManagement.Controllers
 					using var scope = _serviceScopeFactory.CreateScope();
 					var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
 
-					try
-					{
-						await userService.ClaimJobAsync(userId, claimId, claimJobRequest, response.CapacityReservedUntil);
-					}
-					catch (Exception ex)
-					{
-						//_logger.LogError(ex, "Error in ClaimJobAsync for UserId: {UserId}", userId);
-					}
+					await userService.ClaimJobAsync(userId, claimId, claimJobRequest, response.CapacityReservedUntil);
 				});
 
 				await _redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
@@ -381,11 +411,19 @@ namespace CohesionX.UserManagement.Controllers
 			try
 			{
 				var profile = await _userService.ValidateTieBreakerClaim(userId, tiebreakerRequest);
-				if (profile.IsOriginalTranscriber) return Forbid("Users who participated in the original transcription cannot be tiebreakers");
-				if (!profile.UserEloQualified) return Forbid("Users does not meet minimal elo requirement");
+				if (profile.IsOriginalTranscriber)
+				{
+					return Forbid("Users who participated in the original transcription cannot be tiebreakers");
+				}
+
+				if (!profile.UserEloQualified)
+				{
+					return Forbid("Users does not meet minimal elo requirement");
+				}
+
 				return Ok(profile);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -404,7 +442,7 @@ namespace CohesionX.UserManagement.Controllers
 				var status = await _userService.GetProfessionalStatus(userId);
 				return Ok(status);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -422,7 +460,7 @@ namespace CohesionX.UserManagement.Controllers
 			return Ok(new
 			{
 				professionalStatuses = new { },
-				summary = new { totalChecked = 0, professionals = 0, standardTranscribers = 0 }
+				summary = new { totalChecked = 0, professionals = 0, standardTranscribers = 0 },
 			});
 		}
 	}

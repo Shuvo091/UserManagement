@@ -19,6 +19,7 @@ public interface IRedisService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="dto">The availability data to store.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	Task SetAvailabilityAsync(Guid userId, UserAvailabilityRedisDto dto);
 
 	/// <summary>
@@ -33,6 +34,7 @@ public interface IRedisService
 	/// Releases a previously claimed job in Redis.
 	/// </summary>
 	/// <param name="jobId">The job's unique identifier.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	Task ReleaseJobClaimAsync(string jobId);
 
 	/// <summary>
@@ -47,6 +49,7 @@ public interface IRedisService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="jobId">The job's unique identifier.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	Task AddUserClaimAsync(Guid userId, string jobId);
 
 	/// <summary>
@@ -54,6 +57,7 @@ public interface IRedisService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="jobId">The job's unique identifier.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	Task RemoveUserClaimAsync(Guid userId, string jobId);
 
 	/// <summary>
@@ -68,6 +72,7 @@ public interface IRedisService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="dto">The Elo data to store.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 	Task SetUserEloAsync(Guid userId, UserEloRedisDto dto);
 
 	/// <summary>

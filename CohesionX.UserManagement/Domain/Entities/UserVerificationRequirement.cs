@@ -29,7 +29,7 @@ public class UserVerificationRequirement : BaseEntity
 	public bool RequireEmailVerification { get; set; }
 
 	/// <summary>
-	/// Gets or sets the level of verification this configuration applies to 
+	/// Gets or sets the level of verification this configuration applies to
 	/// (e.g., "Basic", "Professional", "Admin").
 	/// </summary>
 	public string VerificationLevel { get; set; } = default!;
@@ -53,8 +53,8 @@ public class UserVerificationRequirement : BaseEntity
 	public Dictionary<string, string> ValidationRules
 	{
 		get => string.IsNullOrWhiteSpace(ValidationRulesJson)
-			? new()
-			: System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(ValidationRulesJson)!;
+			? new ()
+			: System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(ValidationRulesJson) !;
 		set => ValidationRulesJson = System.Text.Json.JsonSerializer.Serialize(value);
 	}
 }

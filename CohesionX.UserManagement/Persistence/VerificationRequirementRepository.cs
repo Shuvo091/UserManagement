@@ -17,7 +17,8 @@ namespace CohesionX.UserManagement.Persistence
 		/// with the specified database context.
 		/// </summary>
 		/// <param name="context">The application database context.</param>
-		public VerificationRequirementRepository(AppDbContext context) : base(context)
+		public VerificationRequirementRepository(AppDbContext context)
+            : base(context)
 		{
 			_context = context;
 		}

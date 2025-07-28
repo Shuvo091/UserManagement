@@ -35,7 +35,7 @@ namespace CohesionX.UserManagement.Controllers
 				var resp = await _eloService.ApplyEloUpdatesAsync(eloUpdateRequest);
 				return Ok(resp);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
 				// Log the exception (not shown here for brevity)
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
@@ -55,7 +55,7 @@ namespace CohesionX.UserManagement.Controllers
 				var resp = await _eloService.ResolveThreeWay(twuReq);
 				return Ok(resp);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
 				// Log the exception (not shown here for brevity)
 				return StatusCode(500, new { error = "An error occurred while processing your request." });

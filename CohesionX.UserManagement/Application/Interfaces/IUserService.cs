@@ -77,6 +77,7 @@ namespace CohesionX.UserManagement.Application.Interfaces
 		/// <param name="existingAvailability">The current availability data.</param>
 		/// <param name="ipAddress">The IP address of the request.</param>
 		/// <param name="userAgent">The user agent string of the request.</param>
+		/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 		Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent);
 
 		/// <summary>
@@ -86,6 +87,7 @@ namespace CohesionX.UserManagement.Application.Interfaces
 		/// <param name="claimId">The claim identifier.</param>
 		/// <param name="claimJobRequest">The job claim request details.</param>
 		/// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
+		/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
 		Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt);
 
 		/// <summary>

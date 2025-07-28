@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using SharedLibrary.RequestResponseModels.UserManagement;
 using CohesionX.UserManagement.Application.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Controllers
 {
@@ -10,6 +9,7 @@ namespace CohesionX.UserManagement.Controllers
 	/// </summary>
 	[ApiController]
 	[Route("api/v1/admin")]
+
 	// [Authorize(Roles = "admin")]
 	public class AdminController : ControllerBase
 	{
@@ -38,7 +38,7 @@ namespace CohesionX.UserManagement.Controllers
 				var profile = await _userService.SetProfessional(userId, setProfessionalRequest);
 				return Ok(profile);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
 			}
@@ -60,7 +60,7 @@ namespace CohesionX.UserManagement.Controllers
 				complianceMode = "POPIA_basic_validation",
 				verificationLevel = "v1_field_validation",
 				verificationSteps = new[] { "phone_verification", "email_verification", "id_format_check", "photo_presence_check" },
-				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" }
+				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" },
 			});
 		}
 
@@ -81,7 +81,7 @@ namespace CohesionX.UserManagement.Controllers
 				complianceMode = "POPIA_basic_validation",
 				verificationLevel = "v1_field_validation",
 				verificationSteps = new[] { "phone_verification", "email_verification", "id_format_check", "photo_presence_check" },
-				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" }
+				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" },
 			});
 		}
 	}

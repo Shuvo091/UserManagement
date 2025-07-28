@@ -11,6 +11,19 @@ namespace CohesionX.UserManagement.Persistence
 		private readonly AppDbContext _context;
 
 		/// <summary>
+		/// Initializes a new instance of the <see cref="UnitOfWork"/> class
+		/// with the specified application database context.
+		/// </summary>
+		/// <param name="context">The application database context.</param>
+		public UnitOfWork(AppDbContext context)
+		{
+			_context = context;
+			EloHistories = new EloRepository(_context);
+			UserStatistics = new UserStatisticsRepository(_context);
+			Users = new UserRepository(_context);
+		}
+
+		/// <summary>
 		/// Gets the repository for managing Elo history records.
 		/// </summary>
 		public IEloRepository EloHistories { get; }
@@ -26,23 +39,10 @@ namespace CohesionX.UserManagement.Persistence
 		public IUserRepository Users { get; }
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="UnitOfWork"/> class
-		/// with the specified application database context.
-		/// </summary>
-		/// <param name="context">The application database context.</param>
-		public UnitOfWork(AppDbContext context)
-		{
-			_context = context;
-			EloHistories = new EloRepository(_context);
-			UserStatistics = new UserStatisticsRepository(_context);
-			Users = new UserRepository(_context);
-		}
-
-		/// <summary>
 		/// Persists all changes made in the context to the database asynchronously.
 		/// </summary>
 		/// <returns>
-		/// A task representing the asynchronous save operation, 
+		/// A task representing the asynchronous save operation,
 		/// returning the number of state entries written to the database.
 		/// </returns>
 		public Task<int> SaveChangesAsync()

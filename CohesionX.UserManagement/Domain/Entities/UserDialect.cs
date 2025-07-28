@@ -16,7 +16,7 @@ public class UserDialect : BaseEntity
 	public string Dialect { get; set; } = default!;
 
 	/// <summary>
-	/// Gets or sets the user's proficiency level in the dialect 
+	/// Gets or sets the user's proficiency level in the dialect
 	/// (e.g., "Native", "Fluent", "Intermediate").
 	/// </summary>
 	public string ProficiencyLevel { get; set; } = default!;
@@ -32,7 +32,7 @@ public class UserDialect : BaseEntity
 	public DateTime CreatedAt { get; set; }
 
 	/// <summary>
-	/// Navigation property to the user who speaks this dialect.
+	/// Gets or sets navigation property to the user who speaks this dialect.
 	/// </summary>
 	public User User { get; set; } = default!;
 }

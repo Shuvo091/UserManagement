@@ -1,7 +1,7 @@
-﻿using CohesionX.UserManagement.Domain.Entities;
+﻿using System.Linq.Expressions;
+using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
 namespace CohesionX.UserManagement.Persistence
 {
@@ -17,7 +17,8 @@ namespace CohesionX.UserManagement.Persistence
 		/// Initializes a new instance of the <see cref="UserRepository"/> class with the specified database context.
 		/// </summary>
 		/// <param name="context">The application database context.</param>
-		public UserRepository(AppDbContext context) : base(context)
+		public UserRepository(AppDbContext context)
+            : base(context)
 		{
 			_context = context;
 		}
@@ -41,9 +42,11 @@ namespace CohesionX.UserManagement.Persistence
 		public async Task<User?> GetUserByIdAsync(Guid userId, bool includeRelated = false)
 		{
 			if (!includeRelated)
+			{
 				return await _context.Users
 					.Include(u => u.Statistics)
 					.FirstOrDefaultAsync(u => u.Id == userId);
+			}
 
 			return await _context.Users
 				.Include(u => u.Dialects)
@@ -67,7 +70,9 @@ namespace CohesionX.UserManagement.Persistence
 		public async Task<User?> GetUserByEmailAsync(string email, bool includeRelated = false)
 		{
 			if (!includeRelated)
+			{
 				return await _context.Users.Where(u => u.Email == email).FirstOrDefaultAsync();
+			}
 
 			return await _context.Users
 				.Include(u => u.Dialects)
@@ -90,7 +95,9 @@ namespace CohesionX.UserManagement.Persistence
 		public Task<List<User>> GetAllUsers(bool includeRelated = false)
 		{
 			if (!includeRelated)
+			{
 				return _context.Users.AsNoTracking().ToListAsync();
+			}
 
 			return _context.Users
 				.Include(u => u.Dialects)
@@ -147,19 +154,29 @@ namespace CohesionX.UserManagement.Persistence
 				.AsQueryable();
 
 			if (!string.IsNullOrWhiteSpace(dialect))
+			{
 				query = query.Where(u => u.Dialects.Any(d => d.Dialect == dialect));
+			}
 
 			if (minElo.HasValue)
-				query = query.Where(u => u.Statistics.CurrentElo >= minElo.Value);
+			{
+				query = query.Where(u => u.Statistics!.CurrentElo >= minElo.Value);
+			}
 
 			if (maxElo.HasValue)
-				query = query.Where(u => u.Statistics.CurrentElo <= maxElo.Value);
+			{
+				query = query.Where(u => u.Statistics!.CurrentElo <= maxElo.Value);
+			}
 
 			if (maxWorkload.HasValue)
+			{
 				query = query.Where(u => u.JobClaims.Count <= maxWorkload.Value);
+			}
 
 			if (limit.HasValue)
+			{
 				query = query.Take(limit.Value);
+			}
 
 			return await query.ToListAsync();
 		}

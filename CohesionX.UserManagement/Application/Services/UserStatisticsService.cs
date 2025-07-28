@@ -1,6 +1,6 @@
-﻿using SharedLibrary.RequestResponseModels.UserManagement;
-using CohesionX.UserManagement.Application.Interfaces;
+﻿using CohesionX.UserManagement.Application.Interfaces;
 using CohesionX.UserManagement.Domain.Entities;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -30,4 +30,3 @@ public class UserStatisticsService : IUserStaticticsService
 		throw new NotImplementedException();
 	}
 }
-

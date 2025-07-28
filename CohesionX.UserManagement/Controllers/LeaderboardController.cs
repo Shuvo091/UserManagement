@@ -20,7 +20,7 @@ namespace CohesionX.UserManagement.Controllers
 			return Ok(new
 			{
 				leaderboard = new object[] { },
-				generatedAt = DateTime.UtcNow
+				generatedAt = DateTime.UtcNow,
 			});
 		}
 	}

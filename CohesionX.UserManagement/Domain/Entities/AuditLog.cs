@@ -40,4 +40,3 @@ public class AuditLog : BaseEntity
 	/// </summary>
 	public User User { get; set; } = default!;
 }
-

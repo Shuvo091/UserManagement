@@ -1,5 +1,5 @@
-﻿using SharedLibrary.RequestResponseModels.UserManagement;
-using CohesionX.UserManagement.Domain.Entities;
+﻿using CohesionX.UserManagement.Domain.Entities;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Interfaces;
 

@@ -44,12 +44,12 @@ public class JobCompletion : BaseEntity
 	public DateTime CreatedAt { get; set; }
 
 	/// <summary>
-	/// Navigation property to the user who completed the job.
+	/// Gets or sets navigation property to the user who completed the job.
 	/// </summary>
 	public User User { get; set; } = default!;
 
 	/// <summary>
-	/// Navigation property to the peer or reviewer involved in the comparison.
+	/// Gets or sets navigation property to the peer or reviewer involved in the comparison.
 	/// </summary>
 	public User Comparison { get; set; } = default!;
 }

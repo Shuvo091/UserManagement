@@ -4,7 +4,7 @@ using SharedLibrary.RequestResponseModels.UserManagement;
 namespace CohesionX.UserManagement.Domain.Entities;
 
 /// <summary>
-/// Represents a user within the User Management domain, 
+/// Represents a user within the User Management domain,
 /// including identity, contact details, status, and related activity.
 /// </summary>
 public class User : BaseEntity

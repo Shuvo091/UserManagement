@@ -5,9 +5,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace CohesionX.UserManagement.Migrations
 {
-    /// <inheritdoc />
-    public partial class initialSchema : Migration
-    {
+	/// <inheritdoc />
+#pragma warning disable SA1300 // Element should begin with upper-case letter
+	public partial class initialSchema : Migration
+#pragma warning restore SA1300 // Element should begin with upper-case letter
+	{
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -25,7 +27,7 @@ namespace CohesionX.UserManagement.Migrations
                     Role = table.Column<string>(type: "text", nullable: false),
                     IsProfessional = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -42,7 +44,7 @@ namespace CohesionX.UserManagement.Migrations
                     DetailsJson = table.Column<string>(type: "text", nullable: false),
                     IpAddress = table.Column<string>(type: "text", nullable: false),
                     UserAgent = table.Column<string>(type: "text", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -69,7 +71,7 @@ namespace CohesionX.UserManagement.Migrations
                     Outcome = table.Column<string>(type: "text", nullable: false),
                     ComparisonType = table.Column<string>(type: "text", nullable: false),
                     KFactorUsed = table.Column<int>(type: "integer", nullable: false),
-                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -98,7 +100,7 @@ namespace CohesionX.UserManagement.Migrations
                     ClaimedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     BookOutExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -122,7 +124,7 @@ namespace CohesionX.UserManagement.Migrations
                     EloChange = table.Column<int>(type: "integer", nullable: false),
                     ComparisonId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -150,7 +152,7 @@ namespace CohesionX.UserManagement.Migrations
                     Dialect = table.Column<string>(type: "text", nullable: false),
                     ProficiencyLevel = table.Column<string>(type: "text", nullable: false),
                     IsPrimary = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -175,7 +177,7 @@ namespace CohesionX.UserManagement.Migrations
                     GamesPlayed = table.Column<int>(type: "integer", nullable: false),
                     LastCalculated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -199,7 +201,7 @@ namespace CohesionX.UserManagement.Migrations
                     VerificationLevel = table.Column<string>(type: "text", nullable: false),
                     VerificationData = table.Column<string>(type: "text", nullable: false),
                     VerifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                 },
                 constraints: table =>
                 {

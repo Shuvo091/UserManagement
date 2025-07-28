@@ -46,7 +46,7 @@ public class UserStatistics : BaseEntity
 	public DateTime UpdatedAt { get; set; }
 
 	/// <summary>
-	/// Navigation property to the user associated with these statistics.
+	/// Gets or sets navigation property to the user associated with these statistics.
 	/// </summary>
 	public User User { get; set; } = default!;
 }

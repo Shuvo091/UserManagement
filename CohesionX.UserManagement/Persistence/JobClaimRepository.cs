@@ -16,7 +16,8 @@ namespace CohesionX.UserManagement.Persistence
 		/// Initializes a new instance of the <see cref="JobClaimRepository"/> class with the specified database context.
 		/// </summary>
 		/// <param name="context">The application database context.</param>
-		public JobClaimRepository(AppDbContext context) : base(context)
+		public JobClaimRepository(AppDbContext context)
+            : base(context)
 		{
 			_context = context;
 		}

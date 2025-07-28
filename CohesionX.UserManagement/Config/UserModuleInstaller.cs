@@ -1,7 +1,7 @@
 ﻿using CohesionX.UserManagement.Application.Interfaces;
 using CohesionX.UserManagement.Application.Services;
-using CohesionX.UserManagement.Persistence.Interfaces;
 using CohesionX.UserManagement.Persistence;
+using CohesionX.UserManagement.Persistence.Interfaces;
 using IdentityServer4.Validation;
 
 namespace CohesionX.UserManagement.Config;

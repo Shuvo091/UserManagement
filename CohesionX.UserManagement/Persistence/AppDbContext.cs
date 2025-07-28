@@ -13,7 +13,10 @@ public class AppDbContext : DbContext
 	/// Initializes a new instance of the <see cref="AppDbContext"/> class using the specified options.
 	/// </summary>
 	/// <param name="options">The options to configure the context.</param>
-	public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+	public AppDbContext(DbContextOptions<AppDbContext> options)
+		: base(options)
+    {
+    }
 
 	/// <summary>
 	/// Gets the <see cref="DbSet{TEntity}"/> for user entities.
@@ -61,7 +64,7 @@ public class AppDbContext : DbContext
 	public DbSet<UserVerificationRequirement> UserVerificationRequirements => Set<UserVerificationRequirement>();
 
 	/// <summary>
-	/// Configures the schema needed for the User Management entities, 
+	/// Configures the schema needed for the User Management entities,
 	/// including keys, indexes, relationships, and delete behaviors.
 	/// </summary>
 	/// <param name="modelBuilder">The builder used to construct the model for the context.</param>

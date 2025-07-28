@@ -1,6 +1,6 @@
-﻿using SharedLibrary.RequestResponseModels.UserManagement;
-using System.Text.Json;
+﻿using System.Text.Json;
 using CohesionX.UserManagement.Application.Interfaces;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -20,7 +20,7 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 	public WorkflowEngineClient(HttpClient httpClient, IConfiguration configuration)
 	{
 		_httpClient = httpClient;
-		_eloUpdateNotifyUri = configuration["WORKFLOW_ENGINE_ELO_NOTIFY_URI"]!;
+		_eloUpdateNotifyUri = configuration["WORKFLOW_ENGINE_ELO_NOTIFY_URI"] !;
 	}
 
 	/// <summary>
@@ -41,25 +41,25 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 			{
 				// Optionally log or inspect the status code and content
 				var errorContent = await response.Content.ReadAsStringAsync();
-				// Log errorContent if needed
 
+				// Log errorContent if needed
 				return null;
 			}
 
 			return await response.Content.ReadFromJsonAsync<EloUpdateNotificationResponse>();
 		}
-		catch (HttpRequestException ex)
+		catch (HttpRequestException)
 		{
 			// Handle network-level errors
 			// Log exception ex if needed
 			return null;
 		}
-		catch (NotSupportedException ex)
+		catch (NotSupportedException)
 		{
 			// Handle unsupported content-type
 			return null;
 		}
-		catch (JsonException ex)
+		catch (JsonException)
 		{
 			// Handle JSON deserialization errors
 			return null;

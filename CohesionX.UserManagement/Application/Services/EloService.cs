@@ -26,14 +26,23 @@ public class EloService : IEloService
 	/// <summary>
 	/// Initializes a new instance of the <see cref="EloService"/> class.
 	/// </summary>
-	public EloService(IEloRepository repo
-		, IUserRepository userRepo
-		, IUserStatisticsRepository userStatRepo
-		, IUnitOfWork unitOfWork
-		, IRedisService redisService
-		, IMapper mapper
-		, IConfiguration config
-		, IWorkflowEngineClient workflowEngineClient)
+	/// <param name="repo">Repository for accessing and managing Elo history records.</param>
+	/// <param name="userRepo">Repository for user-related data operations.</param>
+	/// <param name="userStatRepo">Repository for user statistics data access.</param>
+	/// <param name="unitOfWork">Unit of Work pattern implementation to coordinate repository operations and transaction management.</param>
+	/// <param name="redisService">Service for interacting with Redis cache and data storage.</param>
+	/// <param name="mapper">AutoMapper instance used for mapping between domain entities and DTOs.</param>
+	/// <param name="config">Application configuration interface for accessing settings.</param>
+	/// <param name="workflowEngineClient">Client for communicating with the external workflow engine API.</param>
+	public EloService(
+		IEloRepository repo,
+		IUserRepository userRepo,
+		IUserStatisticsRepository userStatRepo,
+		IUnitOfWork unitOfWork,
+		IRedisService redisService,
+		IMapper mapper,
+		IConfiguration config,
+		IWorkflowEngineClient workflowEngineClient)
 	{
 		_repo = repo;
 		_userRepo = userRepo;
@@ -58,7 +67,7 @@ public class EloService : IEloService
 		{
 			WorkflowRequestId = request.WorkflowRequestId,
 			ComparisonId = request.QaComparisonId,
-			UpdatedAt = DateTime.UtcNow
+			UpdatedAt = DateTime.UtcNow,
 		};
 
 		var userIds = request.RecommendedEloChanges
@@ -70,10 +79,14 @@ public class EloService : IEloService
 			.GetByUserIdsAsync(userIds, trackChanges: true);
 
 		if (userStatisticsDb == null || userStatisticsDb.Count != userIds.Count)
+		{
 			throw new Exception("Missing UserStatistics for some transcribers.");
+		}
 
-		if(request.RecommendedEloChanges.Count > 2)
+		if (request.RecommendedEloChanges.Count > 2)
+		{
 			throw new Exception("Unexpected number of elo change request found");
+		}
 
 		var eloHistoryRecords = new List<EloHistory>();
 
@@ -84,11 +97,10 @@ public class EloService : IEloService
 				?? throw new Exception($"User statistics not found for user {eloChange.TranscriberId}");
 
 			//// Validate current elo matches OldElo
-			//if (userStats.CurrentElo != eloChange.OldElo)
-			//{
-			//	throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
-			//}
-
+			// if (userStats.CurrentElo != eloChange.OldElo)
+			// {
+			// throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
+			// }
 			var newElo = eloChange.OldElo + eloChange.RecommendedChange;
 
 			var eloHistoryRecord = new EloHistory
@@ -97,13 +109,13 @@ public class EloService : IEloService
 				OldElo = eloChange.OldElo,
 				NewElo = newElo,
 				OpponentElo = eloChange.OpponentElo,
-				Reason = request.ComparisonMetadata.QaMethod ?? "",
+				Reason = request.ComparisonMetadata.QaMethod ?? string.Empty,
 				ComparisonId = request.QaComparisonId,
-				JobId = request.WorkflowRequestId ?? "",
-				Outcome = eloChange.ComparisonOutcome ?? "",
-				ComparisonType = request.ComparisonMetadata.ComparisonType ?? "",
+				JobId = request.WorkflowRequestId ?? string.Empty,
+				Outcome = eloChange.ComparisonOutcome ?? string.Empty,
+				ComparisonType = request.ComparisonMetadata.ComparisonType ?? string.Empty,
 				KFactorUsed = CalculateKFactor(userStats.GamesPlayed),
-				ChangedAt = DateTime.UtcNow
+				ChangedAt = DateTime.UtcNow,
 			};
 
 			// Update stats in-memory
@@ -121,15 +133,13 @@ public class EloService : IEloService
 				OldElo = eloChange.OldElo,
 				NewElo = newElo,
 				EloChange = eloChange.RecommendedChange,
-				ComparisonOutcome = eloChange.ComparisonOutcome
+				ComparisonOutcome = eloChange.ComparisonOutcome,
 			});
-
 
 			// For redis update
 			var cutOffDate = DateTime.UtcNow.AddDays(-7);
 			var recentHistory = await _repo.FindAsync(
-				eh => eh.UserId == eloChange.TranscriberId && eh.ChangedAt >= cutOffDate
-			);
+				eh => eh.UserId == eloChange.TranscriberId && eh.ChangedAt >= cutOffDate);
 			recentHistory.Add(eloHistoryRecord);
 			await _redisService.SetUserEloAsync(eloChange.TranscriberId, new UserEloRedisDto
 			{
@@ -137,9 +147,10 @@ public class EloService : IEloService
 				PeakElo = userStats.PeakElo,
 				GamesPlayed = userStats.GamesPlayed,
 				RecentTrend = GetEloTrend(recentHistory, 7),
-				LastJobCompleted = eloHistoryRecord.ChangedAt // TODO: take last job completed at from job yable
+				LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job yable
 			});
 		}
+
 		_unitOfWork.UserStatistics.UpdateRange(userStatisticsDb);
 		await _unitOfWork.EloHistories.AddRangeAsync(eloHistoryRecords);
 		await _unitOfWork.SaveChangesAsync();
@@ -155,9 +166,9 @@ public class EloService : IEloService
 				{
 					UserId = u.TranscriberId,
 					NewElo = u.NewElo,
-					Change = u.EloChange
-				}).ToList()
-			}
+					Change = u.EloChange,
+				}).ToList(),
+			},
 		};
 
 		await _workflowEngineClient.NotifyEloUpdatedAsync(notifyEloUpdateReq);
@@ -172,7 +183,10 @@ public class EloService : IEloService
 	public async Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId)
 	{
 		var user = await _userRepo.GetUserByIdAsync(userId, includeRelated: true);
-		if (user == null) throw new KeyNotFoundException("User not found");
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
 
 		var stats = user.Statistics;
 		var eloHistories = user.EloHistories.OrderBy(eh => eh.ChangedAt).ToList();
@@ -192,7 +206,7 @@ public class EloService : IEloService
 			OldElo = eh.OldElo,
 			NewElo = eh.NewElo,
 			Outcome = eh.Outcome, // e.g. "win", "loss"
-			JobId = eh.JobId
+			JobId = eh.JobId,
 		}).ToList();
 
 		var response = new EloHistoryResponse
@@ -208,8 +222,8 @@ public class EloService : IEloService
 				Last7Days = eloTrend7,
 				Last30Days = eloTrend30,
 				WinRate = winRate,
-				AverageOpponentElo = avgOpponentElo
-			}
+				AverageOpponentElo = avgOpponentElo,
+			},
 		};
 
 		return response;
@@ -226,11 +240,12 @@ public class EloService : IEloService
 		var cutOffDate = DateTime.UtcNow.AddDays(-days);
 
 		var recentHistory = await _repo.FindAsync(
-			eh => eh.UserId == userId && eh.ChangedAt >= cutOffDate
-		);
+			eh => eh.UserId == userId && eh.ChangedAt >= cutOffDate);
 
 		if (recentHistory == null || recentHistory.Count < 2)
+		{
 			return $"0_over_{days}_days";
+		}
 
 		var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().NewElo;
 		var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
@@ -254,7 +269,9 @@ public class EloService : IEloService
 		var recentHistory = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
 
 		if (recentHistory == null || recentHistory.Count < 2)
+		{
 			return $"0_over_{days}_days";
+		}
 
 		var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().OldElo;
 		var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
@@ -276,8 +293,7 @@ public class EloService : IEloService
 		var cutOffDate = DateTime.UtcNow.AddDays(-days);
 
 		var recentHistories = await _repo.FindAsync(
-			eh => userIds.Contains(eh.UserId) && eh.ChangedAt >= cutOffDate
-		);
+			eh => userIds.Contains(eh.UserId) && eh.ChangedAt >= cutOffDate);
 
 		var grouped = recentHistories
 			.GroupBy(eh => eh.UserId)
@@ -287,15 +303,16 @@ public class EloService : IEloService
 				{
 					var ordered = g.OrderBy(e => e.ChangedAt).ToList();
 					if (ordered.Count < 2)
+					{
 						return $"0_over_{days}_days";
+					}
 
 					var earliest = ordered.First().NewElo;
 					var latest = ordered.Last().NewElo;
 					var diff = latest - earliest;
 					var sign = diff >= 0 ? "+" : "-";
 					return $"{sign}{Math.Abs(diff)}_over_{days}_days";
-				}
-			);
+				});
 
 		// Handle users with no history
 		foreach (var userId in userIds)
@@ -322,8 +339,13 @@ public class EloService : IEloService
 			var cutOffDate = DateTime.UtcNow.AddDays(-days.Value);
 			eloHistories = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
 		}
+
 		int total = eloHistories.Count;
-		if (total == 0) return 0.00;
+		if (total == 0)
+		{
+			return 0.00;
+		}
+
 		int wins = eloHistories.Count(eh => eh.Outcome == "win");
 		double winRate = (double)wins / total * 100;
 		return winRate;
@@ -348,7 +370,9 @@ public class EloService : IEloService
 			.ToList();
 
 		if (validEloEntries.Count == 0)
+		{
 			return 0;
+		}
 
 		return validEloEntries.Average();
 	}
@@ -362,7 +386,9 @@ public class EloService : IEloService
 	{
 		// Validate input count
 		if (twuReq.ThreeWayEloChanges == null || twuReq.ThreeWayEloChanges.Count != 3)
+		{
 			throw new ArgumentException("Exactly 3 Elo changes required for three-way resolution.");
+		}
 
 		// Validate roles exist exactly once
 		var roles = twuReq.ThreeWayEloChanges.Select(c => c.Role).ToList();
@@ -371,25 +397,28 @@ public class EloService : IEloService
 		{
 			ThreeWayTranscriberRoleType.OriginalTranscriber1.ToDisplayName(),
 			ThreeWayTranscriberRoleType.OriginalTranscriber2.ToDisplayName(),
-			ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName()
+			ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName(),
 		};
 
 		foreach (var role in requiredRoles)
 		{
 			if (roles.Count(r => r == role) != 1)
+			{
 				throw new ArgumentException($"Role '{role}' must appear exactly once in threeWayEloChanges.");
+			}
 		}
 
 		var userIds = twuReq.ThreeWayEloChanges.Select(t => t.TranscriberId).Distinct().ToList();
 		var userStatsDb = await _userStatRepo.GetByUserIdsAsync(userIds, trackChanges: true);
 
 		if (userStatsDb == null || userStatsDb.Count != userIds.Count)
+		{
 			throw new Exception("Missing statistics for one or more transcribers.");
+		}
 
 		// Find tiebreaker transcriber change
 		var tiebreakerChange = twuReq.ThreeWayEloChanges
 			.First(c => c.Role == ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName());
-
 
 		var eloHistories = new List<EloHistory>();
 		var updateResults = new List<EloUpdateResult>();
@@ -399,9 +428,14 @@ public class EloService : IEloService
 		foreach (var change in twuReq.ThreeWayEloChanges)
 		{
 			if (!EnumDisplayHelper.TryParseDisplayName(change.Role, out ThreeWayTranscriberRoleType roleEnum))
+			{
 				throw new Exception($"Invalid user role provided");
+			}
+
 			if (!EnumDisplayHelper.TryParseDisplayName(change.Outcome, out GameOutcomeType outcomeEnum))
+			{
 				throw new Exception($"Invalid game outcome provided");
+			}
 
 			var stats = userStatsDb.FirstOrDefault(u => u.UserId == change.TranscriberId)
 				?? throw new Exception($"User stats not found for {change.TranscriberId}");
@@ -428,7 +462,7 @@ public class EloService : IEloService
 				JobId = twuReq.WorkflowRequestId,
 				ComparisonType = "three_way",
 				KFactorUsed = CalculateKFactor(stats.GamesPlayed),
-				ChangedAt = DateTime.UtcNow
+				ChangedAt = DateTime.UtcNow,
 			};
 			eloHistories.Add(eloHistoryRecord);
 
@@ -436,7 +470,7 @@ public class EloService : IEloService
 			{
 				UserId = stats.UserId,
 				NewElo = newElo,
-				Change = eloChangeAdjusted
+				Change = eloChangeAdjusted,
 			});
 
 			userNotifications.Add(new UserNotification
@@ -445,14 +479,13 @@ public class EloService : IEloService
 				NotificationType = eloChangeAdjusted > 0 ? "elo_increase" : "elo_decrease",
 				Message = eloChangeAdjusted > 0
 					? $"Great job! Your Elo rating increased by {eloChangeAdjusted} points to {newElo}."
-					: $"Your Elo rating decreased by {Math.Abs(eloChangeAdjusted)} points to {newElo}. Review the feedback for improvement tips."
+					: $"Your Elo rating decreased by {Math.Abs(eloChangeAdjusted)} points to {newElo}. Review the feedback for improvement tips.",
 			});
 
 			// For redis update
 			var cutOffDate = DateTime.UtcNow.AddDays(-7);
 			var recentHistory = await _repo.FindAsync(
-				eh => eh.UserId == change.TranscriberId && eh.ChangedAt >= cutOffDate
-			);
+				eh => eh.UserId == change.TranscriberId && eh.ChangedAt >= cutOffDate);
 			recentHistory.Add(eloHistoryRecord);
 			await _redisService.SetUserEloAsync(change.TranscriberId, new UserEloRedisDto
 			{
@@ -460,7 +493,7 @@ public class EloService : IEloService
 				PeakElo = stats.PeakElo,
 				GamesPlayed = stats.GamesPlayed,
 				RecentTrend = GetEloTrend(recentHistory, 7),
-				LastJobCompleted = eloHistoryRecord.ChangedAt // TODO: take last job completed at from job yable
+				LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job yable
 			});
 		}
 
@@ -476,8 +509,8 @@ public class EloService : IEloService
 			{
 				ComparisonId = twuReq.OriginalComparisonId,
 				UsersUpdated = eloHistories.Count,
-				UpdateResults = updateResults
-			}
+				UpdateResults = updateResults,
+			},
 		};
 
 		await _workflowEngineClient.NotifyEloUpdatedAsync(notifyReq);
@@ -487,7 +520,7 @@ public class EloService : IEloService
 			EloUpdateConfirmed = true,
 			UpdatesApplied = eloHistories.Count,
 			Timestamp = DateTime.UtcNow,
-			UserNotifications = userNotifications
+			UserNotifications = userNotifications,
 		};
 	}
 

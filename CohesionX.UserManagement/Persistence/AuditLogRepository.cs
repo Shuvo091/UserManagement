@@ -1,8 +1,7 @@
-﻿using SharedLibrary.RequestResponseModels.UserManagement;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using CohesionX.UserManagement.Persistence.Interfaces;
+﻿using System.Text.Json;
 using CohesionX.UserManagement.Domain.Entities;
+using CohesionX.UserManagement.Persistence.Interfaces;
+using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Persistence;
 
@@ -43,7 +42,7 @@ public class AuditLogRepository : IAuditLogRepository
 			DetailsJson = JsonSerializer.Serialize(userAvailabilityRedis),
 			IpAddress = ipAddress ?? string.Empty,
 			UserAgent = userAgent ?? string.Empty,
-			Timestamp = DateTime.UtcNow
+			Timestamp = DateTime.UtcNow,
 		});
 
 		await _db.SaveChangesAsync();

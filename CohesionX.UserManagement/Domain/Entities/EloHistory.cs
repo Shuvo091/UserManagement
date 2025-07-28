@@ -32,7 +32,7 @@ public class EloHistory : BaseEntity
 	public string Reason { get; set; } = default!;
 
 	/// <summary>
-	/// Gets or sets the unique identifier of the comparison session 
+	/// Gets or sets the unique identifier of the comparison session
 	/// or evaluation instance that triggered the Elo update.
 	/// </summary>
 	public Guid ComparisonId { get; set; }
@@ -53,7 +53,7 @@ public class EloHistory : BaseEntity
 	public string ComparisonType { get; set; } = default!;
 
 	/// <summary>
-	/// Gets or sets the K-factor used in Elo calculation, 
+	/// Gets or sets the K-factor used in Elo calculation,
 	/// which influences the magnitude of the rating change.
 	/// </summary>
 	public int KFactorUsed { get; set; }
@@ -64,12 +64,12 @@ public class EloHistory : BaseEntity
 	public DateTime ChangedAt { get; set; }
 
 	/// <summary>
-	/// Navigation property to the user whose Elo was changed.
+	/// Gets or sets navigation property to the user whose Elo was changed.
 	/// </summary>
 	public User User { get; set; } = default!;
 
 	/// <summary>
-	/// Navigation property to the comparison peer user.
+	/// Gets or sets navigation property to the comparison peer user.
 	/// Note: This is often another user who was involved in the evaluation.
 	/// </summary>
 	public User Comparison { get; set; } = default!;

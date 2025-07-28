@@ -31,14 +31,14 @@ namespace CohesionX.UserManagement.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: string.Empty);
 
             migrationBuilder.AddColumn<string>(
                 name: "UserName",
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: string.Empty);
         }
 
         /// <inheritdoc />
@@ -57,7 +57,7 @@ namespace CohesionX.UserManagement.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "",
+                defaultValue: string.Empty,
                 oldClrType: typeof(string),
                 oldType: "text",
                 oldNullable: true);
@@ -67,7 +67,7 @@ namespace CohesionX.UserManagement.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "",
+                defaultValue: string.Empty,
                 oldClrType: typeof(string),
                 oldType: "text",
                 oldNullable: true);
