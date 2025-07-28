@@ -5,6 +5,9 @@ using CohesionX.UserManagement.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Application.Services;
 
+/// <summary>
+/// Provides operations for managing user availability, job claims, and Elo data in Redis.
+/// </summary>
 public class RedisService : IRedisService
 {
 	private readonly ICacheService _cache;
@@ -13,6 +16,11 @@ public class RedisService : IRedisService
 	private readonly TimeSpan _userClaimsTtl = TimeSpan.FromHours(8);
 	private readonly TimeSpan _userEloTtl = TimeSpan.FromHours(1);
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="RedisService"/> class.
+	/// </summary>
+	/// <param name="cache">The cache service for Redis operations.</param>
+	/// <param name="configuration">The configuration for TTL settings.</param>
 	public RedisService(ICacheService cache, IConfiguration configuration)
 	{
 		_cache = cache;
@@ -25,11 +33,35 @@ public class RedisService : IRedisService
 		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutes);
 	}
 
+	/// <summary>
+	/// Gets the cache key for user availability.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
 	private string GetAvailabilityKey(Guid userId) => $"user:availability:{userId}";
+
+	/// <summary>
+	/// Gets the cache key for job claim lock.
+	/// </summary>
+	/// <param name="jobId">The job's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
 	private string GetJobClaimLockKey(string jobId) => $"job:claim:lock:{jobId}";
+
+	/// <summary>
+	/// Gets the cache key for user claims.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
 	private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
+
+	/// <summary>
+	/// Gets the cache key for user Elo data.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The cache key string.</returns>
 	private string GetUserEloKey(Guid userId) => $"user:elo:{userId}";
 
+	/// <inheritdoc />
 	public async Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetAvailabilityKey(userId));
@@ -37,12 +69,14 @@ public class RedisService : IRedisService
 		return JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
 	}
 
+	/// <inheritdoc />
 	public async Task SetAvailabilityAsync(Guid userId, UserAvailabilityRedisDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
 		await _cache.SetAsync(GetAvailabilityKey(userId), json, _availabilityTtl);
 	}
 
+	/// <inheritdoc />
 	public async Task<bool> TryClaimJobAsync(string jobId, Guid userId)
 	{
 		var key = GetJobClaimLockKey(jobId);
@@ -52,11 +86,13 @@ public class RedisService : IRedisService
 		return true;
 	}
 
+	/// <inheritdoc />
 	public async Task ReleaseJobClaimAsync(string jobId)
 	{
 		await _cache.RemoveAsync(GetJobClaimLockKey(jobId));
 	}
 
+	/// <inheritdoc />
 	public async Task<List<string>> GetUserClaimsAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetUserClaimsKey(userId));
@@ -65,6 +101,7 @@ public class RedisService : IRedisService
 		return jobs ?? new List<string>();
 	}
 
+	/// <inheritdoc />
 	public async Task AddUserClaimAsync(Guid userId, string jobId)
 	{
 		var key = GetUserClaimsKey(userId);
@@ -74,6 +111,7 @@ public class RedisService : IRedisService
 		await _cache.SetAsync(key, json, _userClaimsTtl);
 	}
 
+	/// <inheritdoc />
 	public async Task RemoveUserClaimAsync(Guid userId, string jobId)
 	{
 		var key = GetUserClaimsKey(userId);
@@ -86,18 +124,21 @@ public class RedisService : IRedisService
 		}
 	}
 
+	/// <inheritdoc />
 	public async Task<UserEloRedisDto?> GetUserEloAsync(Guid userId)
 	{
 		var json = await _cache.GetAsync<string>(GetUserEloKey(userId));
 		return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<UserEloRedisDto>(json);
 	}
 
+	/// <inheritdoc />
 	public async Task SetUserEloAsync(Guid userId, UserEloRedisDto dto)
 	{
 		var json = JsonSerializer.Serialize(dto);
 		await _cache.SetAsync(GetUserEloKey(userId), json, _userEloTtl);
 	}
 
+	/// <inheritdoc />
 	public async Task<Dictionary<Guid, UserAvailabilityRedisDto>> GetBulkAvailabilityAsync(IEnumerable<Guid> userIds)
 	{
 		var idList = userIds.ToList();

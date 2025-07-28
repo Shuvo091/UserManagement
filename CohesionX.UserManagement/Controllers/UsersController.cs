@@ -7,7 +7,9 @@ using CohesionX.UserManagement.Domain.Entities;
 
 namespace CohesionX.UserManagement.Controllers
 {
-	//[Authorize(Policy = "ApiScope")]
+	/// <summary>
+	/// API controller for user management operations such as registration, verification, availability, and job claiming.
+	/// </summary>
 	[ApiController]
 	[Route("api/v1/users")]
 	public class UsersController : ControllerBase
@@ -19,13 +21,16 @@ namespace CohesionX.UserManagement.Controllers
 		private readonly int _defaultBookoutInMinutes;
 		private readonly IServiceScopeFactory _serviceScopeFactory;
 
-
-		public UsersController(IUserService userService
-			, IEloService eloService
-			, IRedisService redisService
-			, IConfiguration configuration
-			, IServiceScopeFactory serviceScopeFactory
-			, IVerificationRequirementService verificationRequirementService)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="UsersController"/> class.
+		/// </summary>
+		public UsersController(
+			IUserService userService,
+			IEloService eloService,
+			IRedisService redisService,
+			IConfiguration configuration,
+			IServiceScopeFactory serviceScopeFactory,
+			IVerificationRequirementService verificationRequirementService)
 		{
 			_userService = userService;
 			_eloService = eloService;
@@ -37,6 +42,11 @@ namespace CohesionX.UserManagement.Controllers
 			_serviceScopeFactory = serviceScopeFactory;
 		}
 
+		/// <summary>
+		/// Registers a new user.
+		/// </summary>
+		/// <param name="dto">The user registration request data.</param>
+		/// <returns>The created user profile or error details.</returns>
 		[AllowAnonymous]
 		[HttpPost("register")]
 		public async Task<IActionResult> Register([FromBody] UserRegisterRequest dto)
@@ -46,7 +56,7 @@ namespace CohesionX.UserManagement.Controllers
 				if (!ModelState.IsValid)
 					return BadRequest(ModelState);
 
-				if(!dto.ConsentToDataProcessing)
+				if (!dto.ConsentToDataProcessing)
 					return BadRequest("Consent to data processing needed!");
 
 				var result = await _userService.RegisterUserAsync(dto);
@@ -56,10 +66,15 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Verifies a user's identity and contact information.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <param name="verificationRequest">The verification request details.</param>
+		/// <returns>Activation response or error details.</returns>
 		[HttpPost("{userId}/verify")]
 		public async Task<IActionResult> VerifyUser([FromRoute] Guid userId, [FromBody] VerificationRequest verificationRequest)
 		{
@@ -117,7 +132,15 @@ namespace CohesionX.UserManagement.Controllers
 			}
 		}
 
-
+		/// <summary>
+		/// Gets a list of users available for work, filtered by dialect, Elo rating, workload, and limit.
+		/// </summary>
+		/// <param name="dialect">Dialect filter.</param>
+		/// <param name="minElo">Minimum Elo rating.</param>
+		/// <param name="maxElo">Maximum Elo rating.</param>
+		/// <param name="maxWorkload">Maximum workload.</param>
+		/// <param name="limit">Maximum number of users to return.</param>
+		/// <returns>List of available users and query metadata.</returns>
 		[HttpGet("available-for-work")]
 		public async Task<IActionResult> GetAvailableForWork(
 			[FromQuery] string? dialect,
@@ -159,7 +182,6 @@ namespace CohesionX.UserManagement.Controllers
 					})
 					.ToList();
 
-
 				return Ok(new UserAvailabilityResponse
 				{
 					AvailableUsers = availableUsers,
@@ -170,10 +192,14 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Gets the availability status of a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <returns>User availability details or not found message.</returns>
 		[HttpGet("{userId}/availability")]
 		public async Task<IActionResult> GetAvailability([FromRoute] Guid userId)
 		{
@@ -185,10 +211,15 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Updates the availability status of a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <param name="availabilityUpdate">The availability update request.</param>
+		/// <returns>Update response or error details.</returns>
 		[HttpPatch("{userId}/availability")]
 		public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateRequest availabilityUpdate)
 		{
@@ -206,7 +237,6 @@ namespace CohesionX.UserManagement.Controllers
 					existingAvailability.Status = availabilityUpdate.Status;
 					existingAvailability.MaxConcurrentJobs = availabilityUpdate.MaxConcurrentJobs;
 				}
-
 
 				existingAvailability.LastUpdate = DateTime.UtcNow;
 
@@ -230,10 +260,14 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Gets the profile information of a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <returns>User profile details or error information.</returns>
 		[HttpGet("{userId}/profile")]
 		public async Task<IActionResult> GetProfile([FromRoute] Guid userId)
 		{
@@ -245,10 +279,14 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Gets the Elo history for a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <returns>Elo history details or error information.</returns>
 		[HttpGet("{userId}/elo-history")]
 		public async Task<IActionResult> GetEloHistory([FromRoute] Guid userId)
 		{
@@ -260,10 +298,15 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Claims a job for a user if eligible.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <param name="claimJobRequest">The job claim request details.</param>
+		/// <returns>Claim response or error details.</returns>
 		[HttpPost("{userId}/claim-job")]
 		public async Task<IActionResult> ClaimJob([FromRoute] Guid userId, [FromBody] ClaimJobRequest claimJobRequest)
 		{
@@ -316,7 +359,6 @@ namespace CohesionX.UserManagement.Controllers
 					}
 				});
 
-
 				await _redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
 
 				return Ok(response);
@@ -327,6 +369,12 @@ namespace CohesionX.UserManagement.Controllers
 			}
 		}
 
+		/// <summary>
+		/// Validates a tiebreaker claim for a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <param name="tiebreakerRequest">The tiebreaker claim request details.</param>
+		/// <returns>Validation response or error details.</returns>
 		[HttpPost("{userId}/validate-tiebreaker-claim")]
 		public async Task<IActionResult> ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] ValidateTiebreakerClaimRequest tiebreakerRequest)
 		{
@@ -340,10 +388,14 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Gets the professional status of a user.
+		/// </summary>
+		/// <param name="userId">The user's unique identifier.</param>
+		/// <returns>Professional status response or error details.</returns>
 		[HttpGet("{userId}/professional-status")]
 		public async Task<IActionResult> GetProfessionalStatus([FromRoute] Guid userId)
 		{
@@ -355,10 +407,14 @@ namespace CohesionX.UserManagement.Controllers
 			catch (Exception e)
 			{
 				return StatusCode(500, new { error = "An error occurred while processing your request." });
-
 			}
 		}
 
+		/// <summary>
+		/// Checks the professional status for a batch of users.
+		/// </summary>
+		/// <param name="batchRequest">The batch request object.</param>
+		/// <returns>Batch check result summary.</returns>
 		[HttpPost("check-professional-status")]
 		public IActionResult BatchCheckProfessionalStatus([FromBody] object batchRequest)
 		{

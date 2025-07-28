@@ -4,17 +4,33 @@ using CohesionX.UserManagement.Application.Interfaces;
 
 namespace CohesionX.UserManagement.Application.Services;
 
+/// <summary>
+/// Provides operations for notifying the workflow engine about Elo updates.
+/// </summary>
 public class WorkflowEngineClient : IWorkflowEngineClient
 {
 	private readonly HttpClient _httpClient;
 	private readonly string _eloUpdateNotifyUri;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="WorkflowEngineClient"/> class.
+	/// </summary>
+	/// <param name="httpClient">The HTTP client for making requests.</param>
+	/// <param name="configuration">The configuration containing endpoint URIs.</param>
 	public WorkflowEngineClient(HttpClient httpClient, IConfiguration configuration)
 	{
 		_httpClient = httpClient;
 		_eloUpdateNotifyUri = configuration["WORKFLOW_ENGINE_ELO_NOTIFY_URI"]!;
 	}
 
+	/// <summary>
+	/// Notifies the workflow engine that an Elo update has occurred.
+	/// </summary>
+	/// <param name="request">The Elo update notification request details.</param>
+	/// <returns>
+	/// The response from the workflow engine acknowledging the update,
+	/// or <c>null</c> if no response was received.
+	/// </returns>
 	public async Task<EloUpdateNotificationResponse?> NotifyEloUpdatedAsync(EloUpdateNotificationRequest request)
 	{
 		try
@@ -49,5 +65,4 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 			return null;
 		}
 	}
-
 }

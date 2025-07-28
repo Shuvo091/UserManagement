@@ -6,17 +6,29 @@ using System.Security.Claims;
 
 namespace CohesionX.UserManagement.Application.Services;
 
+/// <summary>
+/// Validates resource owner password credentials for IdentityServer4 authentication.
+/// </summary>
 public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
 {
 	private readonly IUserService _userService;
 	private readonly IPasswordHasher _passwordHasher;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="ResourceOwnerPasswordValidator"/> class.
+	/// </summary>
+	/// <param name="userService">Service for user management operations.</param>
+	/// <param name="passwordHasher">Service for password hashing and verification.</param>
 	public ResourceOwnerPasswordValidator(IUserService userService, IPasswordHasher passwordHasher)
 	{
 		_userService = userService;
 		_passwordHasher = passwordHasher;
 	}
 
+	/// <summary>
+	/// Validates the resource owner password credentials and sets the authentication result.
+	/// </summary>
+	/// <param name="context">The validation context containing username and password.</param>
 	public async Task ValidateAsync(ResourceOwnerPasswordValidationContext context)
 	{
 		var user = await _userService.GetUserByEmailAsync(context.UserName);
@@ -40,6 +52,11 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
 			claims: GetUserClaims(user));
 	}
 
+	/// <summary>
+	/// Gets the claims for the authenticated user.
+	/// </summary>
+	/// <param name="user">The authenticated user entity.</param>
+	/// <returns>A collection of claims for the user.</returns>
 	private IEnumerable<Claim> GetUserClaims(User user)
 	{
 		return new List<Claim>

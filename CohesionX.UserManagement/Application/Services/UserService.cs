@@ -8,6 +8,9 @@ using CohesionX.UserManagement.Persistence.Interfaces;
 
 namespace CohesionX.UserManagement.Application.Services;
 
+/// <summary>
+/// Provides operations for user registration, profile management, verification, professional status, and job claims.
+/// </summary>
 public class UserService : IUserService
 {
 	private readonly IUserRepository _repo;
@@ -19,6 +22,9 @@ public class UserService : IUserService
 	private readonly int _minEloRequiredForPro;
 	private readonly int _minJobsRequiredForPro;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="UserService"/> class.
+	/// </summary>
 	public UserService(
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
@@ -46,6 +52,11 @@ public class UserService : IUserService
 		_minJobsRequiredForPro = minJobs;
 	}
 
+	/// <summary>
+	/// Registers a new user.
+	/// </summary>
+	/// <param name="dto">The user registration request data.</param>
+	/// <returns>The response containing user registration details.</returns>
 	public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
 	{
 		// Validate required fields
@@ -126,6 +137,11 @@ public class UserService : IUserService
 		};
 	}
 
+	/// <summary>
+	/// Gets the profile information for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The user's profile response.</returns>
 	public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -192,7 +208,11 @@ public class UserService : IUserService
 		return dto;
 	}
 
-
+	/// <summary>
+	/// Gets the user entity by user ID.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The user entity.</returns>
 	public async Task<User> GetUserAsync(Guid userId)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -201,6 +221,11 @@ public class UserService : IUserService
 		return user;
 	}
 
+	/// <summary>
+	/// Gets the user entity by email address.
+	/// </summary>
+	/// <param name="email">The user's email address.</param>
+	/// <returns>The user entity.</returns>
 	public async Task<User> GetUserByEmailAsync(string email)
 	{
 		var user = await _repo.GetUserByEmailAsync(email);
@@ -209,17 +234,39 @@ public class UserService : IUserService
 		return user;
 	}
 
+	/// <summary>
+	/// Gets a filtered list of users based on dialect, Elo rating, workload, and limit.
+	/// </summary>
+	/// <param name="dialect">Dialect filter.</param>
+	/// <param name="minElo">Minimum Elo rating.</param>
+	/// <param name="maxElo">Maximum Elo rating.</param>
+	/// <param name="maxWorkload">Maximum workload.</param>
+	/// <param name="limit">Maximum number of users to return.</param>
+	/// <returns>A list of filtered user entities.</returns>
 	public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
 	{
 		var users = await _repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
 		return users;
 	}
 
+	/// <summary>
+	/// Updates the audit log for a user's availability change.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="existingAvailability">The current availability data.</param>
+	/// <param name="ipAddress">The IP address of the request.</param>
+	/// <param name="userAgent">The user agent string of the request.</param>
 	public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
 	{
 		await _auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
 	}
 
+	/// <summary>
+	/// Activates a user after verification.
+	/// </summary>
+	/// <param name="user">The user entity to activate.</param>
+	/// <param name="verificationDto">The verification request details.</param>
+	/// <returns>The verification response.</returns>
 	public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
 	{
 		user.Status = UserStatusType.Active.ToDisplayName();
@@ -252,6 +299,12 @@ public class UserService : IUserService
 		return response;
 	}
 
+	/// <summary>
+	/// Checks if the provided ID number matches the user's record.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="idNumber">The ID number to check.</param>
+	/// <returns><c>true</c> if the ID number matches; otherwise, <c>false</c>.</returns>
 	public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
 	{
 		var user = await _repo.GetUserByIdAsync(userId);
@@ -259,15 +312,13 @@ public class UserService : IUserService
 		return user.IdNumber == idNumber;
 	}
 
-	private List<string> GetMissingCriteria(int elo, int totalJobs)
-	{
-		List<string> missingCriteria = [];
-		if (elo < _minEloRequiredForPro) missingCriteria.Add("elo_rating");
-		if (totalJobs < _minJobsRequiredForPro) missingCriteria.Add("total_jobs");
-
-		return missingCriteria;
-	}
-
+	/// <summary>
+	/// Claims a job for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="claimId">The claim identifier.</param>
+	/// <param name="claimJobRequest">The job claim request details.</param>
+	/// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
 	public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
 	{
 		var jobClaim = new JobClaim
@@ -284,6 +335,12 @@ public class UserService : IUserService
 		await _jobClaimRepo.SaveChangesAsync();
 	}
 
+	/// <summary>
+	/// Validates a tiebreaker claim for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="validationReq">The tiebreaker claim request details.</param>
+	/// <returns>The tiebreaker claim validation response.</returns>
 	public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -306,6 +363,12 @@ public class UserService : IUserService
 		};
 	}
 
+	/// <summary>
+	/// Sets the professional status for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="validationReq">The request containing professional status details.</param>
+	/// <returns>The response containing updated professional status.</returns>
 	public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
 	{
 		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -348,8 +411,28 @@ public class UserService : IUserService
 		};
 	}
 
+	/// <summary>
+	/// Gets the professional status for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The professional status response.</returns>
 	public Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
 	{
 		throw new NotImplementedException();
+	}
+
+	/// <summary>
+	/// Gets the missing criteria for professional eligibility.
+	/// </summary>
+	/// <param name="elo">The user's current Elo rating.</param>
+	/// <param name="totalJobs">The user's total jobs completed.</param>
+	/// <returns>A list of missing criteria strings.</returns>
+	private List<string> GetMissingCriteria(int elo, int totalJobs)
+	{
+		List<string> missingCriteria = [];
+		if (elo < _minEloRequiredForPro) missingCriteria.Add("elo_rating");
+		if (totalJobs < _minJobsRequiredForPro) missingCriteria.Add("total_jobs");
+
+		return missingCriteria;
 	}
 }

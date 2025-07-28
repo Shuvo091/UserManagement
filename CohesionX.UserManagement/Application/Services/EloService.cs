@@ -7,6 +7,9 @@ using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
+/// <summary>
+/// Provides Elo rating management, history retrieval, trend analysis, and notification operations.
+/// </summary>
 public class EloService : IEloService
 {
 	private readonly IEloRepository _repo;
@@ -20,6 +23,9 @@ public class EloService : IEloService
 	private readonly int _eloKFactorEstablished;
 	private readonly int _eloKFactorExpert;
 
+	/// <summary>
+	/// Initializes a new instance of the <see cref="EloService"/> class.
+	/// </summary>
 	public EloService(IEloRepository repo
 		, IUserRepository userRepo
 		, IUserStatisticsRepository userStatRepo
@@ -41,6 +47,11 @@ public class EloService : IEloService
 		_workflowEngineClient = workflowEngineClient;
 	}
 
+	/// <summary>
+	/// Applies Elo updates based on the provided request.
+	/// </summary>
+	/// <param name="request">The Elo update request details.</param>
+	/// <returns>The result of the Elo update operation.</returns>
 	public async Task<EloUpdateResponse> ApplyEloUpdatesAsync(EloUpdateRequest request)
 	{
 		var eloUpdateResp = new EloUpdateResponse
@@ -153,6 +164,11 @@ public class EloService : IEloService
 		return eloUpdateResp;
 	}
 
+	/// <summary>
+	/// Retrieves the Elo history for a specific user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The Elo history response for the user.</returns>
 	public async Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId)
 	{
 		var user = await _userRepo.GetUserByIdAsync(userId, includeRelated: true);
@@ -199,6 +215,12 @@ public class EloService : IEloService
 		return response;
 	}
 
+	/// <summary>
+	/// Gets the Elo trend for a user over a specified number of days.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="days">The number of days to analyze.</param>
+	/// <returns>A string representing the Elo trend.</returns>
 	public async Task<string> GetEloTrend(Guid userId, int days)
 	{
 		var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -219,6 +241,12 @@ public class EloService : IEloService
 		return $"{sign}{Math.Abs(diff)}_over_{days}_days";
 	}
 
+	/// <summary>
+	/// Gets the Elo trend for a list of Elo history records over a specified number of days.
+	/// </summary>
+	/// <param name="eloHistories">The list of Elo history records.</param>
+	/// <param name="days">The number of days to analyze.</param>
+	/// <returns>A string representing the Elo trend.</returns>
 	public string GetEloTrend(List<EloHistory> eloHistories, int days)
 	{
 		var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -237,6 +265,12 @@ public class EloService : IEloService
 		return $"{sign}{Math.Abs(diff)}_over_{days}_days";
 	}
 
+	/// <summary>
+	/// Gets Elo trends for multiple users over a specified number of days.
+	/// </summary>
+	/// <param name="userIds">The list of user identifiers.</param>
+	/// <param name="days">The number of days to analyze.</param>
+	/// <returns>A dictionary mapping user IDs to their Elo trend strings.</returns>
 	public async Task<Dictionary<Guid, string>> BulkEloTrendAsync(List<Guid> userIds, int days)
 	{
 		var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -275,16 +309,12 @@ public class EloService : IEloService
 		return grouped;
 	}
 
-	private int CalculateKFactor(int gamesPlayed)
-	{
-		return gamesPlayed switch
-		{
-			< 30 => _eloKFactorNew,
-			< 100 => _eloKFactorEstablished,
-			_ => _eloKFactorExpert
-		};
-	}
-
+	/// <summary>
+	/// Calculates the win rate from a list of Elo history records.
+	/// </summary>
+	/// <param name="eloHistories">The list of Elo history records.</param>
+	/// <param name="days">Optional number of days to filter the records.</param>
+	/// <returns>The win rate as a double.</returns>
 	public double GetWinRate(List<EloHistory> eloHistories, int? days = null)
 	{
 		if (days.HasValue)
@@ -299,6 +329,12 @@ public class EloService : IEloService
 		return winRate;
 	}
 
+	/// <summary>
+	/// Calculates the average opponent Elo from a list of Elo history records.
+	/// </summary>
+	/// <param name="eloHistories">The list of Elo history records.</param>
+	/// <param name="days">Optional number of days to filter the records.</param>
+	/// <returns>The average opponent Elo as a double.</returns>
 	public double GetAverageOpponentElo(List<EloHistory> eloHistories, int? days = null)
 	{
 		if (days.HasValue)
@@ -317,6 +353,11 @@ public class EloService : IEloService
 		return validEloEntries.Average();
 	}
 
+	/// <summary>
+	/// Resolves a three-way Elo update scenario.
+	/// </summary>
+	/// <param name="twuReq">The three-way Elo update request details.</param>
+	/// <returns>The result of the three-way resolution operation.</returns>
 	public async Task<ThreeWayEloUpdateResponse> ResolveThreeWay(ThreeWayEloUpdateRequest twuReq)
 	{
 		// Validate input count
@@ -450,4 +491,18 @@ public class EloService : IEloService
 		};
 	}
 
+	/// <summary>
+	/// Calculates the K-factor for Elo updates based on games played.
+	/// </summary>
+	/// <param name="gamesPlayed">The number of games played by the user.</param>
+	/// <returns>The K-factor value.</returns>
+	private int CalculateKFactor(int gamesPlayed)
+	{
+		return gamesPlayed switch
+		{
+			< 30 => _eloKFactorNew,
+			< 100 => _eloKFactorEstablished,
+			_ => _eloKFactorExpert
+		};
+	}
 }
