@@ -7,10 +7,11 @@ namespace CohesionX.UserManagement.Controllers
 	/// <summary>
 	/// API controller for administrative operations such as setting professional status and updating configuration.
 	/// </summary>
+	#if !DEBUG || !SKIP_AUTH
+	[Authorize(Roles = "Admin")]
+	#endif
 	[ApiController]
 	[Route("api/v1/admin")]
-
-	// [Authorize(Roles = "admin")]
 	public class AdminController : ControllerBase
 	{
 		private readonly IUserService _userService;

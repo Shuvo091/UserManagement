@@ -10,6 +10,9 @@ namespace CohesionX.UserManagement.Controllers
 	/// <summary>
 	/// API controller for user management operations such as registration, verification, availability, and job claiming.
 	/// </summary>
+	#if !DEBUG || !SKIP_AUTH
+	[Authorize]
+	#endif
 	[ApiController]
 	[Route("api/v1/users")]
 	public class UsersController : ControllerBase

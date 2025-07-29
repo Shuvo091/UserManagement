@@ -5,6 +5,9 @@ namespace CohesionX.UserManagement.Controllers
 	/// <summary>
 	/// API controller for retrieving leaderboard data.
 	/// </summary>
+	#if !DEBUG || !SKIP_AUTH
+	[Authorize]
+	#endif
 	[ApiController]
 	[Route("api/v1/leaderboard")]
 	public class LeaderboardController : ControllerBase

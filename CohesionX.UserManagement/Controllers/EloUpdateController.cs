@@ -7,6 +7,10 @@ namespace CohesionX.UserManagement.Controllers
 	/// <summary>
 	/// API controller for Elo rating updates and three-way resolution operations.
 	/// </summary>
+
+	#if !DEBUG || !SKIP_AUTH
+	[Authorize(Roles = "Admin")]
+	#endif
 	[ApiController]
 	[Route("api/v1/elo-update")]
 	public class EloUpdateController : ControllerBase
