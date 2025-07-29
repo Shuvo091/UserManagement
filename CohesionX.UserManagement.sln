@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.env = .env
 		docker-compose.yml = docker-compose.yml
+		CohesionX.UserManagement\Dockerfile.debug = CohesionX.UserManagement\Dockerfile.debug
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedLibrary", "Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj", "{B880B71D-90CF-4B0C-83B5-A31E7E7EB1E2}"

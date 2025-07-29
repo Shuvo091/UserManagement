@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -93,6 +94,16 @@ services.AddSwaggerGen(options =>
 });
 
 // Register modules
+var redisConnectionString = builder.Configuration.GetValue<string>("Redis:ConnectionString");
+
+// Register IConnectionMultiplexer as singleton
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+	var configurationOptions = ConfigurationOptions.Parse(redisConnectionString!, true);
+	configurationOptions.AbortOnConnectFail = false; // recommended to keep retrying
+
+	return ConnectionMultiplexer.Connect(configurationOptions);
+});
 services.AddRedisCache(config);
 services.RegisterUserModule();
 builder.Services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>(client =>
@@ -105,7 +116,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 var app = builder.Build();
 
 // Middleware
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
 {
 	app.UseSwagger();
 	app.UseSwaggerUI(options =>

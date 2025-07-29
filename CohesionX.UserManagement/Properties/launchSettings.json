@@ -1,4 +1,48 @@
-﻿{
+{
+    "profiles": {
+        "http": {
+            "commandName": "Project",
+            "launchBrowser": true,
+            "launchUrl": "swagger",
+            "environmentVariables": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "dotnetRunMessages": true,
+            "applicationUrl": "http://localhost:5236"
+        },
+        "https": {
+            "commandName": "Project",
+            "launchBrowser": true,
+            "launchUrl": "swagger",
+            "environmentVariables": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "dotnetRunMessages": true,
+            "applicationUrl": "https://localhost:7039;http://localhost:5236"
+        },
+        "IIS Express": {
+            "commandName": "IISExpress",
+            "launchBrowser": true,
+            "launchUrl": "swagger",
+            "environmentVariables": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        "Container (Dockerfile)": {
+            "commandName": "Docker",
+            "launchBrowser": true,
+            "launchUrl": "http://localhost:90/swagger",
+            "environmentVariables": {
+                "ASPNETCORE_ENVIRONMENT": "Docker",
+                "ASPNETCORE_URLS": "http://+:90",
+                "DB_CONNECTION_STRING__db_secrets": "Host=host.docker.internal;Port=5432;Database=CohesionX_UserManagement;Username=postgres;Password=Itachi007!;SslMode=Disable",
+                "Redis__ConnectionString": "host.docker.internal:6379"
+            },
+            "publishAllPorts": true,
+            "useSSL": false,
+            "httpPort": 90
+        }
+    },
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "iisSettings": {
     "windowsAuthentication": false,
@@ -6,36 +50,6 @@
     "iisExpress": {
       "applicationUrl": "http://localhost:63745",
       "sslPort": 44395
-    }
-  },
-  "profiles": {
-    "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "applicationUrl": "http://localhost:5236",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "applicationUrl": "https://localhost:7039;http://localhost:5236",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
     }
   }
 }
