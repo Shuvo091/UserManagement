@@ -459,12 +459,7 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPost("check-professional-status")]
 		public IActionResult BatchCheckProfessionalStatus([FromBody] object batchRequest)
 		{
-			// TODO: Implement batch check logic
-			return Ok(new
-			{
-				professionalStatuses = new { },
-				summary = new { totalChecked = 0, professionals = 0, standardTranscribers = 0 },
-			});
+			throw new NotImplementedException("not yet been implemented.");
 		}
 	}
 }

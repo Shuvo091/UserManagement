@@ -74,16 +74,7 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPut("users/{userId}/verification-requirements")]
 		public IActionResult SetVerificationRequirements([FromRoute] Guid userId, [FromBody] object verificationRequirements)
 		{
-			// TODO: Implement verification requirements logic
-			return Ok(new
-			{
-				requirementsUpdated = true,
-				piiDataCollection = true,
-				complianceMode = "POPIA_basic_validation",
-				verificationLevel = "v1_field_validation",
-				verificationSteps = new[] { "phone_verification", "email_verification", "id_format_check", "photo_presence_check" },
-				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" },
-			});
+			throw new NotImplementedException("not yet been implemented.");
 		}
 	}
 }

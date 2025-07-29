@@ -19,12 +19,7 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpGet]
 		public IActionResult GetLeaderboard()
 		{
-			// TODO: Implement leaderboard logic
-			return Ok(new
-			{
-				leaderboard = new object[] { },
-				generatedAt = DateTime.UtcNow,
-			});
+			throw new NotImplementedException("not yet been implemented.");
 		}
 	}
 }
