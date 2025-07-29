@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,28 +16,28 @@ public static class DbSeeder
 	/// if none currently exist.
 	/// </summary>
 	/// <param name="context">The application database context.</param>
+	/// <param name="dbSeederOptions">Options for DB seeder.</param>
 	/// <returns>A task that represents the asynchronous seeding operation.</returns>
 	/// <exception cref="FileNotFoundException">Thrown when the seed JSON file cannot be found.</exception>
 	/// <exception cref="InvalidOperationException">Thrown when seed data parsing fails.</exception>
-	public static async Task SeedGlobalVerificationRequirementAsync(AppDbContext context)
+	public static async Task SeedGlobalVerificationRequirementAsync(AppDbContext context, DbSeederOptions dbSeederOptions)
 	{
-		// Check if any verification requirements already exist to avoid duplicate seeding
 		if (await context.UserVerificationRequirements.AnyAsync())
 		{
-			return; // Already seeded
+			return;
 		}
 
-		// Compose the path to the seed file relative to the application base directory
-		var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DbSeeder.json");
+		// Use configured path
+		var relativePath = dbSeederOptions.SeedFilePath ?? "DbSeeder.json";
+		var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+
 		if (!File.Exists(jsonPath))
 		{
 			throw new FileNotFoundException("Seed file not found", jsonPath);
 		}
 
-		// Read JSON seed data asynchronously
 		var json = await File.ReadAllTextAsync(jsonPath);
 
-		// Deserialize JSON into UserVerificationRequirement model with case-insensitive property names
 		var model = JsonSerializer.Deserialize<UserVerificationRequirement>(json, new JsonSerializerOptions
 		{
 			PropertyNameCaseInsensitive = true,
@@ -47,13 +48,9 @@ public static class DbSeeder
 			throw new InvalidOperationException("Failed to parse seed data.");
 		}
 
-		// Assign a new unique ID to ensure a fresh database record
 		model.Id = Guid.NewGuid();
-
-		// Re-serialize the ValidationRules dictionary back to JSON for database storage
 		model.ValidationRulesJson = JsonSerializer.Serialize(model.ValidationRules);
 
-		// Add the new entity and save changes asynchronously
 		context.UserVerificationRequirements.Add(model);
 		await context.SaveChangesAsync();
 	}

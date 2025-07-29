@@ -1,4 +1,5 @@
-﻿using CohesionX.UserManagement.Middleware;
+﻿using CohesionX.UserManagement.Application.Models;
+using CohesionX.UserManagement.Middleware;
 using CohesionX.UserManagement.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,14 +11,17 @@ namespace CohesionX.UserManagement.Services;
 public class MigrationAndSeedingService : IHostedService
 {
 	private readonly IServiceProvider _serviceProvider;
+	private readonly IConfiguration _configuration;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MigrationAndSeedingService"/> class.
 	/// </summary>
 	/// <param name="serviceProvider">Service provider.</param>
-	public MigrationAndSeedingService(IServiceProvider serviceProvider)
+	/// <param name="configuration">For Dbseeder options from config.</param>
+	public MigrationAndSeedingService(IServiceProvider serviceProvider, IConfiguration configuration)
 	{
 		_serviceProvider = serviceProvider;
+		_configuration = configuration;
 	}
 
 	/// <summary>
@@ -31,7 +35,20 @@ public class MigrationAndSeedingService : IHostedService
 		var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await context.Database.MigrateAsync(cancellationToken);
-		await DbSeeder.SeedGlobalVerificationRequirementAsync(context);
+
+		// Read seed path from config
+		var seedFilePath = _configuration["DbSeeder:SeedFilePath"];
+		if (string.IsNullOrWhiteSpace(seedFilePath))
+		{
+			throw new InvalidOperationException("SeedFilePath not configured.");
+		}
+
+		DbSeederOptions dbSeederOptions = new DbSeederOptions
+		{
+			SeedFilePath = seedFilePath,
+		};
+
+		await DbSeeder.SeedGlobalVerificationRequirementAsync(context, dbSeederOptions);
 	}
 
 	/// <summary>
