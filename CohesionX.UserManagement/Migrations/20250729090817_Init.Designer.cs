@@ -11,21 +11,22 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace CohesionX.UserManagement.Migrations
 {
-	[DbContext(typeof(AppDbContext))]
-    [Migration("20250722200820_AddOpponentId2")]
-    partial class AddOpponentId2
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20250729090817_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("user_management")
                 .HasAnnotation("ProductVersion", "9.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.AuditLog", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -57,10 +58,10 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.EloHistory", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.EloHistory", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -92,12 +93,6 @@ namespace CohesionX.UserManagement.Migrations
                     b.Property<int>("OpponentElo")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("OpponentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("OpponentId2")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Outcome")
                         .IsRequired()
                         .HasColumnType("text");
@@ -113,14 +108,12 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("ComparisonId");
 
-                    b.HasIndex("OpponentId");
-
                     b.HasIndex("UserId");
 
-                    b.ToTable("EloHistories");
+                    b.ToTable("EloHistories", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobClaim", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.JobClaim", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -150,10 +143,10 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("JobClaims");
+                    b.ToTable("JobClaims", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobCompletion", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.JobCompletion", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -188,10 +181,10 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("JobCompletions");
+                    b.ToTable("JobCompletions", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -248,10 +241,10 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("IdNumber")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserDialect", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.UserDialect", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -278,10 +271,10 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserDialects");
+                    b.ToTable("UserDialects", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserStatistics", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.UserStatistics", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -316,10 +309,45 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("UserStatistics");
+                    b.ToTable("UserStatistics", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.VerificationRecord", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.UserVerificationRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequireEmailVerification")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequireIdDocument")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequirePhoneVerification")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequirePhotoUpload")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ValidationRulesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("VerificationLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserVerificationRequirements", "user_management");
+                });
+
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.VerificationRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -354,12 +382,12 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("VerificationRecords");
+                    b.ToTable("VerificationRecords", "user_management");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.AuditLog", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.AuditLog", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("AuditLogs")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -368,21 +396,15 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.EloHistory", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.EloHistory", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "Comparison")
                         .WithMany()
                         .HasForeignKey("ComparisonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Opponent")
-                        .WithMany()
-                        .HasForeignKey("OpponentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("EloHistories")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -390,14 +412,12 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.Navigation("Comparison");
 
-                    b.Navigation("Opponent");
-
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobClaim", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.JobClaim", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("JobClaims")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -406,15 +426,15 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobCompletion", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.JobCompletion", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "Comparison")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "Comparison")
                         .WithMany()
                         .HasForeignKey("ComparisonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("JobCompletions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -425,9 +445,9 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserDialect", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.UserDialect", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Dialects")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -436,20 +456,20 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserStatistics", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.UserStatistics", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithOne("Statistics")
-                        .HasForeignKey("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserStatistics", "UserId")
+                        .HasForeignKey("CohesionX.UserManagement.Domain.Entities.UserStatistics", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.VerificationRecord", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.VerificationRecord", b =>
                 {
-                    b.HasOne("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", "User")
+                    b.HasOne("CohesionX.UserManagement.Domain.Entities.User", "User")
                         .WithMany("VerificationRecords")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -458,7 +478,7 @@ namespace CohesionX.UserManagement.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", b =>
+            modelBuilder.Entity("CohesionX.UserManagement.Domain.Entities.User", b =>
                 {
                     b.Navigation("AuditLogs");
 

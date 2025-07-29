@@ -3,6 +3,7 @@ using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
 using CohesionX.UserManagement.Middleware;
 using CohesionX.UserManagement.Persistence;
+using CohesionX.UserManagement.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,7 +20,10 @@ services.AddControllers();
 
 // PostgreSQL DbContext
 services.AddDbContext<AppDbContext>(options =>
-	options.UseNpgsql(config["DB_CONNECTION_STRING:db-secrets"]));
+	options.UseNpgsql(config["DB_CONNECTION_STRING:db-secrets"], npgsqlOptions =>
+	{
+		npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", DbSchema.Default);
+	}));
 
 // JWT Authentication with Role-based Claims
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -112,6 +116,7 @@ builder.Services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>(clie
 });
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddHostedService<MigrationAndSeedingService>();
 
 var app = builder.Build();
 

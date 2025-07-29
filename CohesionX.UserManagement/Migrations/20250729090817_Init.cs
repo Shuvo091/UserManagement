@@ -5,24 +5,28 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace CohesionX.UserManagement.Migrations
 {
-	/// <inheritdoc />
-#pragma warning disable SA1300 // Element should begin with upper-case letter
-	public partial class initialSchema : Migration
-#pragma warning restore SA1300 // Element should begin with upper-case letter
-	{
+    /// <inheritdoc />
+    public partial class Init : Migration
+    {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "user_management");
+
             migrationBuilder.CreateTable(
                 name: "Users",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     FirstName = table.Column<string>(type: "text", nullable: false),
                     LastName = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
-                    Phone = table.Column<string>(type: "text", nullable: false),
-                    IdNumber = table.Column<string>(type: "text", nullable: false),
+                    UserName = table.Column<string>(type: "text", nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false),
+                    Phone = table.Column<string>(type: "text", nullable: true),
+                    IdNumber = table.Column<string>(type: "text", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
                     Role = table.Column<string>(type: "text", nullable: false),
                     IsProfessional = table.Column<bool>(type: "boolean", nullable: false),
@@ -35,7 +39,27 @@ namespace CohesionX.UserManagement.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserVerificationRequirements",
+                schema: "user_management",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequireIdDocument = table.Column<bool>(type: "boolean", nullable: false),
+                    RequirePhotoUpload = table.Column<bool>(type: "boolean", nullable: false),
+                    RequirePhoneVerification = table.Column<bool>(type: "boolean", nullable: false),
+                    RequireEmailVerification = table.Column<bool>(type: "boolean", nullable: false),
+                    VerificationLevel = table.Column<string>(type: "text", nullable: false),
+                    ValidationRulesJson = table.Column<string>(type: "text", nullable: false),
+                    Reason = table.Column<string>(type: "text", nullable: false),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserVerificationRequirements", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AuditLogs",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -52,6 +76,7 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_AuditLogs_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -59,12 +84,14 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateTable(
                 name: "EloHistories",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     OldElo = table.Column<int>(type: "integer", nullable: false),
                     NewElo = table.Column<int>(type: "integer", nullable: false),
+                    OpponentElo = table.Column<int>(type: "integer", nullable: false),
                     Reason = table.Column<string>(type: "text", nullable: false),
                     ComparisonId = table.Column<Guid>(type: "uuid", nullable: false),
                     JobId = table.Column<string>(type: "text", nullable: false),
@@ -79,19 +106,22 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_EloHistories_Users_ComparisonId",
                         column: x => x.ComparisonId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_EloHistories_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
                 name: "JobClaims",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -108,6 +138,7 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_JobClaims_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -115,6 +146,7 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateTable(
                 name: "JobCompletions",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -132,12 +164,14 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_JobCompletions_Users_ComparisonId",
                         column: x => x.ComparisonId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_JobCompletions_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -145,6 +179,7 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateTable(
                 name: "UserDialects",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -160,6 +195,7 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_UserDialects_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -167,6 +203,7 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateTable(
                 name: "UserStatistics",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -185,6 +222,7 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_UserStatistics_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -192,6 +230,7 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateTable(
                 name: "VerificationRecords",
+                schema: "user_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -209,6 +248,7 @@ namespace CohesionX.UserManagement.Migrations
                     table.ForeignKey(
                         name: "FK_VerificationRecords_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "user_management",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -216,59 +256,70 @@ namespace CohesionX.UserManagement.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_AuditLogs_UserId",
+                schema: "user_management",
                 table: "AuditLogs",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_EloHistories_ComparisonId",
+                schema: "user_management",
                 table: "EloHistories",
                 column: "ComparisonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_EloHistories_UserId",
+                schema: "user_management",
                 table: "EloHistories",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JobClaims_UserId",
+                schema: "user_management",
                 table: "JobClaims",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JobCompletions_ComparisonId",
+                schema: "user_management",
                 table: "JobCompletions",
                 column: "ComparisonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_JobCompletions_UserId",
+                schema: "user_management",
                 table: "JobCompletions",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserDialects_UserId",
+                schema: "user_management",
                 table: "UserDialects",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
+                schema: "user_management",
                 table: "Users",
                 column: "Email",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_IdNumber",
+                schema: "user_management",
                 table: "Users",
                 column: "IdNumber",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserStatistics_UserId",
+                schema: "user_management",
                 table: "UserStatistics",
                 column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_VerificationRecords_UserId",
+                schema: "user_management",
                 table: "VerificationRecords",
                 column: "UserId");
         }
@@ -277,28 +328,40 @@ namespace CohesionX.UserManagement.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AuditLogs");
+                name: "AuditLogs",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "EloHistories");
+                name: "EloHistories",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "JobClaims");
+                name: "JobClaims",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "JobCompletions");
+                name: "JobCompletions",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "UserDialects");
+                name: "UserDialects",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "UserStatistics");
+                name: "UserStatistics",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "VerificationRecords");
+                name: "UserVerificationRequirements",
+                schema: "user_management");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "VerificationRecords",
+                schema: "user_management");
+
+            migrationBuilder.DropTable(
+                name: "Users",
+                schema: "user_management");
         }
     }
 }

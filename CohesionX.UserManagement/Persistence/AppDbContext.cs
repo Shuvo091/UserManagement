@@ -70,48 +70,8 @@ public class AppDbContext : DbContext
 	/// <param name="modelBuilder">The builder used to construct the model for the context.</param>
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
-		base.OnModelCreating(modelBuilder);
-
-		// Configure User entity
-		modelBuilder.Entity<User>(entity =>
-		{
-			entity.HasKey(e => e.Id);
-
-			// Enforce unique indexes on Email and IdNumber
-			entity.HasIndex(e => e.Email).IsUnique();
-			entity.HasIndex(e => e.IdNumber).IsUnique();
-
-			// Configure one-to-many and one-to-one relationships with related entities
-			entity.HasMany(u => u.Dialects)
-				  .WithOne(d => d.User)
-				  .HasForeignKey(d => d.UserId);
-
-			entity.HasOne(u => u.Statistics)
-				  .WithOne(s => s.User)
-				  .HasForeignKey<UserStatistics>(s => s.UserId);
-
-			entity.HasMany(u => u.EloHistories)
-				  .WithOne(e => e.User)
-				  .HasForeignKey(e => e.UserId);
-
-			entity.HasMany(u => u.JobCompletions)
-				  .WithOne(c => c.User)
-				  .HasForeignKey(c => c.UserId);
-
-			entity.HasMany(u => u.JobClaims)
-				  .WithOne(j => j.User)
-				  .HasForeignKey(j => j.UserId);
-
-			entity.HasMany(u => u.AuditLogs)
-				  .WithOne(a => a.User)
-				  .HasForeignKey(a => a.UserId);
-
-			entity.HasMany(u => u.VerificationRecords)
-				  .WithOne(v => v.User)
-				  .HasForeignKey(v => v.UserId);
-		});
-
-		// Apply all configurations in this assembly
+		modelBuilder.HasDefaultSchema(DbSchema.Default);
 		modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+		base.OnModelCreating(modelBuilder);
 	}
 }
