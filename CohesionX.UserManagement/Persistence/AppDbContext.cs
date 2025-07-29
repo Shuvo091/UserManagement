@@ -111,17 +111,7 @@ public class AppDbContext : DbContext
 				  .HasForeignKey(v => v.UserId);
 		});
 
-		// Configure EloHistory entity relationships with restricted delete behavior to prevent cascade deletes
-		modelBuilder.Entity<EloHistory>()
-			.HasOne(e => e.User)
-			.WithMany(u => u.EloHistories)
-			.HasForeignKey(e => e.UserId)
-			.OnDelete(DeleteBehavior.Restrict);
-
-		modelBuilder.Entity<EloHistory>()
-			.HasOne(e => e.Comparison)
-			.WithMany()
-			.HasForeignKey(e => e.ComparisonId)
-			.OnDelete(DeleteBehavior.Restrict);
+		// Apply all configurations in this assembly
+		modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 	}
 }

@@ -10,7 +10,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace CohesionX.UserManagement.Migrations
 {
-	[DbContext(typeof(AppDbContext))]
+    [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
@@ -54,7 +54,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.EloHistory", b =>
@@ -106,7 +106,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("EloHistories");
+                    b.ToTable("EloHistories", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobClaim", b =>
@@ -139,7 +139,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("JobClaims");
+                    b.ToTable("JobClaims", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.JobCompletion", b =>
@@ -177,7 +177,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("JobCompletions");
+                    b.ToTable("JobCompletions", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.User", b =>
@@ -237,7 +237,7 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("IdNumber")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserDialect", b =>
@@ -267,7 +267,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserDialects");
+                    b.ToTable("UserDialects", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserStatistics", b =>
@@ -305,7 +305,7 @@ namespace CohesionX.UserManagement.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("UserStatistics");
+                    b.ToTable("UserStatistics", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.UserVerificationRequirement", b =>
@@ -340,7 +340,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UserVerificationRequirements");
+                    b.ToTable("UserVerificationRequirements", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.VerificationRecord", b =>
@@ -378,7 +378,7 @@ namespace CohesionX.UserManagement.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("VerificationRecords");
+                    b.ToTable("VerificationRecords", (string)null);
                 });
 
             modelBuilder.Entity("CohesionX.UserManagement.Modules.Users.Domain.Entities.AuditLog", b =>
