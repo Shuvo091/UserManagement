@@ -24,6 +24,7 @@ public class UserService : IUserService
 	private readonly int _initElo;
 	private readonly int _minEloRequiredForPro;
 	private readonly int _minJobsRequiredForPro;
+	private readonly ILogger<UserService> _logger;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="UserService"/> class.
@@ -35,6 +36,7 @@ public class UserService : IUserService
 	/// <param name="passwordHasher">Utility for securely hashing and verifying user passwords.</param>
 	/// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
 	/// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
+	/// <param name="logger"> logger. </param>
 	public UserService(
 		IUserRepository repo,
 		IAuditLogRepository auditLogRepo,
@@ -42,7 +44,8 @@ public class UserService : IUserService
 		IMapper mapper,
 		IPasswordHasher passwordHasher,
 		IOptions<AppConstantsOptions> appContantOptions,
-		IEloService eloService)
+		IEloService eloService,
+		ILogger<UserService> logger)
 	{
 		_repo = repo;
 		_auditLogRepo = auditLogRepo;
@@ -58,6 +61,7 @@ public class UserService : IUserService
 
 		var initMinJobsPro = appContantOptions.Value.MinJobsRequiredForPro;
 		_minJobsRequiredForPro = initMinJobsPro;
+		_logger = logger;
 	}
 
 	/// <summary>

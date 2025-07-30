@@ -1,4 +1,5 @@
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -16,14 +17,17 @@ namespace CohesionX.UserManagement.Controllers
 	public class EloUpdateController : ControllerBase
 	{
 		private readonly IEloService _eloService;
+		private readonly ILogger<EloUpdateController> _logger;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="EloUpdateController"/> class.
 		/// </summary>
 		/// <param name="eloService">Service for Elo operations.</param>
-		public EloUpdateController(IEloService eloService)
+		/// <param name="logger"> logger. </param>
+		public EloUpdateController(IEloService eloService, ILogger<EloUpdateController> logger)
 		{
 			_eloService = eloService;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -34,16 +38,8 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPost]
 		public async Task<IActionResult> EloUpdate([FromBody] EloUpdateRequest eloUpdateRequest)
 		{
-			try
-			{
-				var resp = await _eloService.ApplyEloUpdatesAsync(eloUpdateRequest);
-				return Ok(resp);
-			}
-			catch (Exception)
-			{
-				// Log the exception (not shown here for brevity)
-				return StatusCode(500, new { error = "An error occurred while processing your request." });
-			}
+			var resp = await _eloService.ApplyEloUpdatesAsync(eloUpdateRequest);
+			return Ok(resp);
 		}
 
 		/// <summary>
@@ -54,16 +50,8 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPost("three-way-resolution")]
 		public async Task<IActionResult> ThreeWayResolution([FromBody] ThreeWayEloUpdateRequest twuReq)
 		{
-			try
-			{
-				var resp = await _eloService.ResolveThreeWay(twuReq);
-				return Ok(resp);
-			}
-			catch (Exception)
-			{
-				// Log the exception (not shown here for brevity)
-				return StatusCode(500, new { error = "An error occurred while processing your request." });
-			}
+			var resp = await _eloService.ResolveThreeWay(twuReq);
+			return Ok(resp);
 		}
 	}
 }

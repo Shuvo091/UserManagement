@@ -1,3 +1,4 @@
+using CohesionX.UserManagement.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CohesionX.UserManagement.Controllers
@@ -12,6 +13,17 @@ namespace CohesionX.UserManagement.Controllers
 	[Route("api/v1/leaderboard")]
 	public class LeaderboardController : ControllerBase
 	{
+		private readonly ILogger<LeaderboardController> _logger;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="LeaderboardController"/> class.
+		/// </summary>
+		/// <param name="logger"> logger.</param>
+		public LeaderboardController(ILogger<LeaderboardController> logger)
+		{
+			_logger = logger;
+		}
+
 		/// <summary>
 		/// Gets the current leaderboard.
 		/// </summary>

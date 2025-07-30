@@ -4,7 +4,7 @@ using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace CohesionX.UserManagement.Middleware;
+namespace CohesionX.UserManagement.Infrastucture;
 
 /// <summary>
 /// Provides database seeding operations for the User Management module.

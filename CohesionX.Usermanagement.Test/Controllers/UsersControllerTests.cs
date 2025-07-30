@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.RequestResponseModels.UserManagement;
@@ -19,6 +20,7 @@ public class UsersControllerTests
 	private readonly Mock<IVerificationRequirementService> _verificationRequirementServiceMock = new();
 	private readonly Mock<IOptions<AppConstantsOptions>> _configurationMock = new();
 	private readonly Mock<IServiceScopeFactory> _scopeFactoryMock = new();
+	private readonly Mock<ILogger<UsersController>> _logger = new();
 	private readonly UsersController _controller;
 
 	public UsersControllerTests()
@@ -30,7 +32,8 @@ public class UsersControllerTests
 			_redisServiceMock.Object,
 			_configurationMock.Object,
 			_scopeFactoryMock.Object,
-			_verificationRequirementServiceMock.Object);
+			_verificationRequirementServiceMock.Object,
+			_logger.Object);
 	}
 
 	[Fact]

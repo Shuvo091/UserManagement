@@ -1,5 +1,5 @@
 ﻿using CohesionX.UserManagement.Application.Models;
-using CohesionX.UserManagement.Middleware;
+using CohesionX.UserManagement.Infrastucture;
 using CohesionX.UserManagement.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

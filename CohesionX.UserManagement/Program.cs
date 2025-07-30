@@ -1,11 +1,17 @@
 using CohesionX.UserManagement.Application.Interfaces;
-using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
 using CohesionX.UserManagement.Extensions;
+using CohesionX.UserManagement.Middleware;
 using CohesionX.UserManagement.Services;
+using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
-using StackExchange.Redis;
+
+Log.Logger = new LoggerConfiguration()
+	.Enrich.FromLogContext()
+	.WriteTo.Console()
+	.WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+	.CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -31,6 +37,7 @@ services.AddHostedService<MigrationAndSeedingService>();
 services.AddAppDbContext(configuration);
 services.AddJwtAuthentication(configuration);
 services.AddAuthorizationPolicy(configuration);
+builder.Host.UseSerilog();
 
 var app = builder.Build();
 
@@ -41,6 +48,7 @@ if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docke
 	app.UseSwaggerUIWithOAuth(configuration);
 }
 
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

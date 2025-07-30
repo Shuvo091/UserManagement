@@ -13,16 +13,19 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
 {
 	private readonly IUserService _userService;
 	private readonly IPasswordHasher _passwordHasher;
+	private readonly ILogger<ResourceOwnerPasswordValidator> _logger;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="ResourceOwnerPasswordValidator"/> class.
 	/// </summary>
 	/// <param name="userService">Service for user management operations.</param>
 	/// <param name="passwordHasher">Service for password hashing and verification.</param>
-	public ResourceOwnerPasswordValidator(IUserService userService, IPasswordHasher passwordHasher)
+	/// <param name="logger"> logger. </param>
+	public ResourceOwnerPasswordValidator(IUserService userService, IPasswordHasher passwordHasher, ILogger<ResourceOwnerPasswordValidator> logger)
 	{
 		_userService = userService;
 		_passwordHasher = passwordHasher;
+		_logger = logger;
 	}
 
 	/// <summary>

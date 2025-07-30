@@ -17,13 +17,15 @@ public class RedisService : IRedisService
 	private readonly TimeSpan _jobClaimLockTtl = TimeSpan.FromSeconds(30);
 	private readonly TimeSpan _userClaimsTtl = TimeSpan.FromHours(8);
 	private readonly TimeSpan _userEloTtl = TimeSpan.FromHours(1);
+	private readonly ILogger<RedisService> _logger;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="RedisService"/> class.
 	/// </summary>
 	/// <param name="cache">The cache service for Redis operations.</param>
 	/// <param name="appContantOptions"> app contants options. </param>
-	public RedisService(ICacheService cache, IOptions<AppConstantsOptions> appContantOptions)
+	/// <param name="logger"> logger. </param>
+	public RedisService(ICacheService cache, IOptions<AppConstantsOptions> appContantOptions, ILogger<RedisService> logger)
 	{
 		_cache = cache;
 
@@ -31,6 +33,7 @@ public class RedisService : IRedisService
 		var ttlMinutesStr = appContantOptions.Value.RedisCacheTtlMinutes;
 
 		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutesStr);
+		_logger = logger;
 	}
 
 	/// <inheritdoc />

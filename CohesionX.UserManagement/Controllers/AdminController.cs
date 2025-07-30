@@ -1,4 +1,5 @@
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -15,14 +16,17 @@ namespace CohesionX.UserManagement.Controllers
 	public class AdminController : ControllerBase
 	{
 		private readonly IUserService _userService;
+		private readonly ILogger<AdminController> _logger;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="AdminController"/> class.
 		/// </summary>
 		/// <param name="userService">Service for user management operations.</param>
-		public AdminController(IUserService userService)
+		/// <param name="logger"> loger. </param>
+		public AdminController(IUserService userService, ILogger<AdminController> logger)
 		{
 			_userService = userService;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -34,15 +38,8 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPost("users/{userId}/set-professional")]
 		public async Task<IActionResult> SetProfessional([FromRoute] Guid userId, [FromBody] SetProfessionalRequest setProfessionalRequest)
 		{
-			try
-			{
-				var profile = await _userService.SetProfessional(userId, setProfessionalRequest);
-				return Ok(profile);
-			}
-			catch (Exception)
-			{
-				return StatusCode(500, new { error = "An error occurred while processing your request." });
-			}
+			var profile = await _userService.SetProfessional(userId, setProfessionalRequest);
+			return Ok(profile);
 		}
 
 		/// <summary>
@@ -53,16 +50,7 @@ namespace CohesionX.UserManagement.Controllers
 		[HttpPut("config")]
 		public IActionResult UpdateConfig([FromBody] object configRequest)
 		{
-			// TODO: Implement config update logic
-			return Ok(new
-			{
-				requirementsUpdated = true,
-				piiDataCollection = true,
-				complianceMode = "POPIA_basic_validation",
-				verificationLevel = "v1_field_validation",
-				verificationSteps = new[] { "phone_verification", "email_verification", "id_format_check", "photo_presence_check" },
-				roadmapEnhancements = new { v2_planned = "dha_automated_verification", v2_provider = "experian_or_similar" },
-			});
+			throw new NotImplementedException("not yet been implemented.");
 		}
 
 		/// <summary>

@@ -4,15 +4,18 @@ using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Controllers;
 using CohesionX.UserManagement.Application.Interfaces;
 using SharedLibrary.RequestResponseModels.UserManagement;
+using Castle.Core.Logging;
+using Microsoft.Extensions.Logging;
 
 public class EloUpdateControllerTests
 {
 	private readonly Mock<IEloService> _eloServiceMock = new();
+	private readonly Mock<ILogger<EloUpdateController>> _logger = new();
 	private readonly EloUpdateController _eloController;
 
 	public EloUpdateControllerTests()
 	{
-		_eloController = new EloUpdateController(_eloServiceMock.Object);
+		_eloController = new EloUpdateController(_eloServiceMock.Object, _logger.Object);
 	}
 
 	[Fact]

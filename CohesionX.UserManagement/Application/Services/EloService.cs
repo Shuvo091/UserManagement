@@ -24,6 +24,7 @@ public class EloService : IEloService
 	private readonly int _eloKFactorNew;
 	private readonly int _eloKFactorEstablished;
 	private readonly int _eloKFactorExpert;
+	private readonly ILogger<EloService> _logger;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="EloService"/> class.
@@ -36,6 +37,7 @@ public class EloService : IEloService
 	/// <param name="mapper">AutoMapper instance used for mapping between domain entities and DTOs.</param>
 	/// <param name="appContantOptions"> Options for app contants. </param>
 	/// <param name="workflowEngineClient">Client for communicating with the external workflow engine API.</param>
+	/// <param name="logger"> logger. </param>
 	public EloService(
 		IEloRepository repo,
 		IUserRepository userRepo,
@@ -44,7 +46,8 @@ public class EloService : IEloService
 		IRedisService redisService,
 		IMapper mapper,
 		IOptions<AppConstantsOptions> appContantOptions,
-		IWorkflowEngineClient workflowEngineClient)
+		IWorkflowEngineClient workflowEngineClient,
+		ILogger<EloService> logger)
 	{
 		_repo = repo;
 		_userRepo = userRepo;
@@ -56,6 +59,7 @@ public class EloService : IEloService
 		_eloKFactorEstablished = appContantOptions.Value.EloKFactorEstablished;
 		_eloKFactorExpert = appContantOptions.Value.EloKFactorExpert;
 		_workflowEngineClient = workflowEngineClient;
+		_logger = logger;
 	}
 
 	/// <summary>
