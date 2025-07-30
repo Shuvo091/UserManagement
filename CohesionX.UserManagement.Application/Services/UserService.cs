@@ -1,0 +1,476 @@
+﻿using AutoMapper;
+using CohesionX.UserManagement.Abstractions.DTOs.Options;
+using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Database.Abstractions.Entities;
+using CohesionX.UserManagement.Database.Abstractions.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SharedLibrary.AppEnums;
+using SharedLibrary.RequestResponseModels.UserManagement;
+using System.Text.Json;
+
+namespace CohesionX.UserManagement.Application.Services;
+
+/// <summary>
+/// Provides operations for user registration, profile management, verification, professional status, and job claims.
+/// </summary>
+public class UserService : IUserService
+{
+	private readonly IUserRepository _repo;
+	private readonly IAuditLogRepository _auditLogRepo;
+	private readonly IJobClaimRepository _jobClaimRepo;
+	private readonly IEloService _eloService;
+	private readonly int _initElo;
+	private readonly int _minEloRequiredForPro;
+	private readonly int _minJobsRequiredForPro;
+	private readonly ILogger<UserService> _logger;
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="UserService"/> class.
+	/// </summary>
+	/// <param name="repo">Repository for managing user data persistence and retrieval.</param>
+	/// <param name="auditLogRepo">Repository for logging user-related audit events and changes.</param>
+	/// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
+	/// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
+	/// <param name="passwordHasher">Utility for securely hashing and verifying user passwords.</param>
+	/// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
+	/// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
+	/// <param name="logger"> logger. </param>
+	public UserService(
+		IUserRepository repo,
+		IAuditLogRepository auditLogRepo,
+		IJobClaimRepository jobClaimRepo,
+		IMapper mapper,
+		IOptions<AppConstantsOptions> appContantOptions,
+		IEloService eloService,
+		ILogger<UserService> logger)
+	{
+		_repo = repo;
+		_auditLogRepo = auditLogRepo;
+		_jobClaimRepo = jobClaimRepo;
+		_eloService = eloService;
+
+		var initElo = appContantOptions.Value.InitialEloRating;
+		_initElo = initElo;
+
+		var initMinEloPro = appContantOptions.Value.MinEloRequiredForPro;
+		_minEloRequiredForPro = initMinEloPro;
+
+		var initMinJobsPro = appContantOptions.Value.MinJobsRequiredForPro;
+		_minJobsRequiredForPro = initMinJobsPro;
+		_logger = logger;
+	}
+
+	/// <summary>
+	/// Registers a new user.
+	/// </summary>
+	/// <param name="dto">The user registration request data.</param>
+	/// <returns>The response containing user registration details.</returns>
+	public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
+	{
+		// Validate required fields
+		if (string.IsNullOrWhiteSpace(dto.FirstName) ||
+			string.IsNullOrWhiteSpace(dto.LastName) ||
+			string.IsNullOrWhiteSpace(dto.Email) ||
+			string.IsNullOrWhiteSpace(dto.Password))
+		{
+			throw new ArgumentException("All required fields must be provided");
+		}
+
+		// Check if email already exists
+		if (await _repo.EmailExistsAsync(dto.Email))
+		{
+			throw new ArgumentException("Email already registered");
+		}
+
+		// Create user entity
+		var user = new User
+		{
+			Id = Guid.NewGuid(),
+			FirstName = dto.FirstName,
+			LastName = dto.LastName,
+			Email = dto.Email,
+			UserName = dto.Email,
+			Phone = dto.Phone,
+			IdNumber = dto.IdNumber,
+			CreatedAt = DateTime.UtcNow,
+			UpdatedAt = DateTime.UtcNow,
+			Status = UserStatusType.PendingVerification.ToDisplayName(),
+			Role = UserRoleType.Transcriber.ToDisplayName(),
+			IsProfessional = false,
+		};
+		user.PasswordHash = dto.Password; //TODO: Hash the password securely
+
+		// Add dialect preferences
+		if (dto.DialectPreferences != null && dto.DialectPreferences.Any())
+		{
+			foreach (var dialect in dto.DialectPreferences)
+			{
+				user.Dialects.Add(new UserDialect
+				{
+					Dialect = dialect,
+					ProficiencyLevel = dto.LanguageExperience ?? string.Empty,
+					IsPrimary = false,
+					CreatedAt = DateTime.UtcNow,
+				});
+			}
+		}
+
+		user.Statistics = new UserStatistics
+		{
+			TotalJobs = 0,
+			CurrentElo = _initElo,
+			PeakElo = _initElo,
+			GamesPlayed = 0,
+			LastCalculated = DateTime.UtcNow,
+			CreatedAt = DateTime.UtcNow,
+			UpdatedAt = DateTime.UtcNow,
+		};
+
+		// Attempt activation
+		var verificationRequired = new List<string>
+		{
+			"id_document_upload",
+		};
+
+		await _repo.AddAsync(user);
+		await _repo.SaveChangesAsync();
+
+		return new UserRegisterResponse
+		{
+			UserId = user.Id,
+			EloRating = user.Statistics.CurrentElo,
+			Status = user.Status,
+			ProfileUri = $"/api/v1/users/{user.Id}/profile",
+			VerificationRequired = verificationRequired,
+		};
+	}
+
+	/// <summary>
+	/// Gets the profile information for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The user's profile response.</returns>
+	public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
+
+		var stats = user.Statistics;
+		var eloHistories = user.EloHistories;
+		var dialects = user.Dialects;
+		var jobCompletions = user.JobCompletions;
+
+		var currentElo = stats?.CurrentElo ?? 0;
+		var totalJobs = stats?.TotalJobs ?? 0;
+
+		var missingCriteria = GetMissingCriteria(currentElo, totalJobs);
+		var eligible = missingCriteria.Count == 0;
+
+		var eloTrend7 = _eloService.GetEloTrend(eloHistories.ToList(), 7);
+		var eloTrend30 = _eloService.GetEloTrend(eloHistories.ToList(), 30);
+		var winRate = _eloService.GetWinRate(eloHistories.ToList());
+
+		var jobsLast30Days = jobCompletions.Count(jc => jc.CompletedAt >= DateTime.UtcNow.AddDays(-30));
+
+		var dto = new UserProfileResponse
+		{
+			FirstName = user.FirstName,
+			LastName = user.LastName,
+			EloRating = currentElo,
+			PeakElo = stats?.PeakElo ?? 0,
+			Status = user.Status,
+			RegisteredAt = user.CreatedAt,
+			IsProfessional = user.Role == UserRoleType.Professional.ToDisplayName(),
+			ProfessionalEligibility = new ProfessionalEligibilityDto
+			{
+				Eligible = eligible,
+				MissingCriteria = missingCriteria,
+				Progress = new ProfessionalProgressDto
+				{
+					EloProgress = $"{currentElo}/{_minEloRequiredForPro}",
+					JobsProgress = $"{totalJobs}/{_minJobsRequiredForPro}",
+				},
+			},
+			Statistics = new UserStatisticsDto
+			{
+				TotalJobsCompleted = totalJobs,
+				GamesPlayed = stats?.GamesPlayed ?? 0,
+				EloTrend = eloTrend7,
+				DialectExpertise = dialects.Select(d => d.Dialect).ToList(),
+				WinRate = winRate,
+				Last30Days = new Last30DaysStatsDto
+				{
+					JobsCompleted = jobsLast30Days,
+					EloChange = eloTrend30,
+					Earnings = 0, // TODO: Calculate
+				},
+			},
+			Preferences = new UserPreferencesDto
+			{
+				MaxConcurrentJobs = 3,
+				DialectPreferences = user.Dialects.Select(d => d.Dialect).ToList(),
+				PreferredJobTypes = [], // TODO: Where to get preferred job type
+			},
+		};
+
+		return dto;
+	}
+
+	/// <summary>
+	/// Gets the user entity by user ID.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The user entity.</returns>
+	public async Task<User> GetUserAsync(Guid userId)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
+
+		return user;
+	}
+
+	/// <summary>
+	/// Gets the user entity by email address.
+	/// </summary>
+	/// <param name="email">The user's email address.</param>
+	/// <returns>The user entity.</returns>
+	public async Task<User> GetUserByEmailAsync(string email)
+	{
+		var user = await _repo.GetUserByEmailAsync(email);
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
+
+		return user;
+	}
+
+	/// <summary>
+	/// Gets a filtered list of users based on dialect, Elo rating, workload, and limit.
+	/// </summary>
+	/// <param name="dialect">Dialect filter.</param>
+	/// <param name="minElo">Minimum Elo rating.</param>
+	/// <param name="maxElo">Maximum Elo rating.</param>
+	/// <param name="maxWorkload">Maximum workload.</param>
+	/// <param name="limit">Maximum number of users to return.</param>
+	/// <returns>A list of filtered user entities.</returns>
+	public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
+	{
+		var users = await _repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
+		return users;
+	}
+
+	/// <summary>
+	/// Updates the audit log for a user's availability change.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="existingAvailability">The current availability data.</param>
+	/// <param name="ipAddress">The IP address of the request.</param>
+	/// <param name="userAgent">The user agent string of the request.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+	public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
+	{
+		await _auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
+	}
+
+	/// <summary>
+	/// Activates a user after verification.
+	/// </summary>
+	/// <param name="user">The user entity to activate.</param>
+	/// <param name="verificationDto">The verification request details.</param>
+	/// <returns>The verification response.</returns>
+	public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
+	{
+		user.Status = UserStatusType.Active.ToDisplayName();
+		user.IdNumber = verificationDto.IdDocumentValidation.IdNumber;
+		var verificationRecord = new VerificationRecord
+		{
+			VerificationType = verificationDto.VerificationType,
+			Status = VerificationStatusType.Approved.ToDisplayName(),
+			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
+			VerificationData = JsonSerializer.Serialize(verificationDto),
+			VerifiedAt = DateTime.UtcNow,
+			CreatedAt = DateTime.UtcNow,
+		};
+		user.VerificationRecords.Add(verificationRecord);
+		_repo.Update(user);
+		await _repo.SaveChangesAsync();
+
+		var response = new VerificationResponse
+		{
+			VerificationStatus = verificationRecord.Status,
+			EloRating = user.Statistics?.CurrentElo ?? 0,
+			StatusChanged = "pending_verification -> active",
+			EligibleForWork = true,
+			ActivationMethod = "automatic",
+			ActivatedAt = DateTime.UtcNow,
+			VerificationLevel = verificationRecord.VerificationLevel,
+			NextSteps = ["profile_completion", "job_browsing"],
+			RoadmapNote = "V2 will include automated ID verification via Department of Home Affairs",
+		};
+		return response;
+	}
+
+	/// <summary>
+	/// Checks if the provided ID number matches the user's record.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="idNumber">The ID number to check.</param>
+	/// <returns><c>true</c> if the ID number matches; otherwise, <c>false</c>.</returns>
+	public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
+	{
+		var user = await _repo.GetUserByIdAsync(userId);
+		if (user == null)
+		{
+			return false;
+		}
+
+		return user.IdNumber == idNumber;
+	}
+
+	/// <summary>
+	/// Claims a job for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="claimId">The claim identifier.</param>
+	/// <param name="claimJobRequest">The job claim request details.</param>
+	/// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
+	/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+	public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
+	{
+		var jobClaim = new JobClaim
+		{
+			Id = claimId,
+			UserId = userId,
+			JobId = claimJobRequest.JobId,
+			ClaimedAt = claimJobRequest.ClaimTimestamp,
+			BookOutExpiresAt = bookouExpiresAt,
+			Status = JobClaimStatus.Pending.ToDisplayName(),
+			CreatedAt = DateTime.UtcNow,
+		};
+		jobClaim = await _jobClaimRepo.AddJobClaimAsync(jobClaim);
+		await _jobClaimRepo.SaveChangesAsync();
+	}
+
+	/// <summary>
+	/// Validates a tiebreaker claim for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="validationReq">The tiebreaker claim request details.</param>
+	/// <returns>The tiebreaker claim validation response.</returns>
+	public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
+		if (user == null || claim == null || user.Statistics == null)
+		{
+			throw new Exception("User not found");
+		}
+
+		return new ValidateTiebreakerClaimResponse
+		{
+			TiebreakerClaimValidated = user != null && claim != null && user.Statistics != null
+			&& user.Statistics.CurrentElo >= validationReq.RequiredMinElo && !validationReq.OriginalTranscribers.Contains(userId),
+			UserId = userId,
+			UserEloQualified = user!.Statistics!.CurrentElo >= validationReq.RequiredMinElo,
+			CurrentElo = user.Statistics!.CurrentElo,
+			IsOriginalTranscriber = validationReq.OriginalTranscribers.Contains(userId),
+			ClaimId = claim!.Id.ToString(),
+			BonusConfirmed = true, // TODO: Calculate
+			EstimatedCompletion = string.Empty, // TODO: Calculate based on job complexity
+		};
+	}
+
+	/// <summary>
+	/// Sets the professional status for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <param name="validationReq">The request containing professional status details.</param>
+	/// <returns>The response containing updated professional status.</returns>
+	public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
+	{
+		var user = await _repo.GetUserByIdAsync(userId, includeRelated: true);
+		var authorizedBy = await _repo.GetUserByIdAsync(validationReq.AuthorizedBy);
+		if (user == null)
+		{
+			throw new KeyNotFoundException("User not found");
+		}
+
+		if (authorizedBy == null)
+		{
+			throw new KeyNotFoundException("Authorizer not found");
+		}
+
+		if (authorizedBy.Role != UserRoleType.Admin.ToDisplayName())
+		{
+			throw new KeyNotFoundException("Authorizer must be an admin");
+		}
+
+		var previousRole = user.Role;
+
+		user.IsProfessional = validationReq.IsProfessional;
+
+		user.VerificationRecords.Add(new VerificationRecord
+		{
+			VerificationData = JsonSerializer.Serialize(validationReq.ProfessionalVerification.VerificationDocuments),
+			VerificationType = VerificationType.IdDocument.ToDisplayName(),
+			Status = VerificationStatusType.Approved.ToDisplayName(),
+			VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
+			VerifiedAt = DateTime.UtcNow,
+			CreatedAt = DateTime.UtcNow,
+		});
+		user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
+
+		_repo.Update(user);
+		await _repo.SaveChangesAsync();
+
+		return new SetProfessionalResponse
+		{
+			UserId = user.Id,
+			RoleUpdated = true,
+			IsProfessional = user.IsProfessional,
+			PreviousRole = previousRole,
+			NewRole = user.Role,
+			EffectiveFrom = DateTime.UtcNow,
+		};
+	}
+
+	/// <summary>
+	/// Gets the professional status for a user.
+	/// </summary>
+	/// <param name="userId">The user's unique identifier.</param>
+	/// <returns>The professional status response.</returns>
+	public Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
+	{
+		throw new NotImplementedException();
+	}
+
+	/// <summary>
+	/// Gets the missing criteria for professional eligibility.
+	/// </summary>
+	/// <param name="elo">The user's current Elo rating.</param>
+	/// <param name="totalJobs">The user's total jobs completed.</param>
+	/// <returns>A list of missing criteria strings.</returns>
+	private List<string> GetMissingCriteria(int elo, int totalJobs)
+	{
+		List<string> missingCriteria = [];
+		if (elo < _minEloRequiredForPro)
+		{
+			missingCriteria.Add("elo_rating");
+		}
+
+		if (totalJobs < _minJobsRequiredForPro)
+		{
+			missingCriteria.Add("total_jobs");
+		}
+
+		return missingCriteria;
+	}
+}

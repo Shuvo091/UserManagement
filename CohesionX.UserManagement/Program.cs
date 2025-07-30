@@ -1,9 +1,10 @@
-using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Application.Extensions;
 using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
+using CohesionX.UserManagement.Database.Services;
 using CohesionX.UserManagement.Extensions;
 using CohesionX.UserManagement.Middleware;
-using CohesionX.UserManagement.Services;
 using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 

@@ -1,4 +1,5 @@
-﻿using CohesionX.UserManagement.Application.Models;
+﻿using CohesionX.UserManagement.Abstractions.DTOs.Options;
+using CohesionX.UserManagement.Database.Abstractions.Options;
 
 namespace CohesionX.UserManagement.Extensions;
 

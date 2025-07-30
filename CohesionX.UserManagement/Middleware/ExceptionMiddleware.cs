@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
-using CohesionX.UserManagement.Infrastucture;
+using CohesionX.UserManagement.Application.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 

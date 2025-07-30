@@ -1,7 +1,5 @@
-using CohesionX.UserManagement.Application.Interfaces;
-using CohesionX.UserManagement.Application.Models;
-using CohesionX.UserManagement.Application.Services;
-using CohesionX.UserManagement.Domain.Entities;
+using CohesionX.UserManagement.Abstractions.DTOs.Options;
+using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,9 +11,9 @@ namespace CohesionX.UserManagement.Controllers
 	/// <summary>
 	/// API controller for user management operations such as registration, verification, availability, and job claiming.
 	/// </summary>
-	#if !DEBUG || !SKIP_AUTH
+#if !DEBUG || !SKIP_AUTH
 	[Authorize]
-	#endif
+#endif
 	[ApiController]
 	[Route("api/v1/users")]
 	public class UsersController : ControllerBase

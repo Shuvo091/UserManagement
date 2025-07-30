@@ -1,4 +1,3 @@
-using CohesionX.UserManagement.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CohesionX.UserManagement.Controllers

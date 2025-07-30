@@ -1,8 +1,8 @@
 // xUnit test setup for UsersController
-using CohesionX.UserManagement.Application.Interfaces;
-using CohesionX.UserManagement.Application.Models;
+using CohesionX.UserManagement.Abstractions.DTOs.Options;
+using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Controllers;
-using CohesionX.UserManagement.Domain.Entities;
+using CohesionX.UserManagement.Database.Abstractions.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;

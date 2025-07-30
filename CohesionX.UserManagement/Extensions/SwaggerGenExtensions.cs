@@ -1,4 +1,4 @@
-﻿using CohesionX.UserManagement.Application.Models;
+﻿using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using Microsoft.OpenApi.Models;
 
 namespace CohesionX.UserManagement.Extensions;

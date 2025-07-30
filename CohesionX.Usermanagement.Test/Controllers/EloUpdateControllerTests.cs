@@ -2,10 +2,10 @@
 using Moq;
 using Microsoft.AspNetCore.Mvc;
 using CohesionX.UserManagement.Controllers;
-using CohesionX.UserManagement.Application.Interfaces;
 using SharedLibrary.RequestResponseModels.UserManagement;
 using Castle.Core.Logging;
 using Microsoft.Extensions.Logging;
+using CohesionX.UserManagement.Abstractions.Services;
 
 public class EloUpdateControllerTests
 {
