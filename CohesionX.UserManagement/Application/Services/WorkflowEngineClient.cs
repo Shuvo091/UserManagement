@@ -1,11 +1,13 @@
 ﻿using System.Text.Json;
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
+using Microsoft.Extensions.Options;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
 
 /// <summary>
-/// Provides operations for notifying the workflow engine about Elo updates.
+/// Handles communication with the Workflow Engine regarding Elo updates.
 /// </summary>
 public class WorkflowEngineClient : IWorkflowEngineClient
 {
@@ -15,53 +17,40 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 	/// <summary>
 	/// Initializes a new instance of the <see cref="WorkflowEngineClient"/> class.
 	/// </summary>
-	/// <param name="httpClient">The HTTP client for making requests.</param>
-	/// <param name="configuration">The configuration containing endpoint URIs.</param>
-	public WorkflowEngineClient(HttpClient httpClient, IConfiguration configuration)
+	/// <param name="httpClient"> http client. </param>
+	/// <param name="configOptions"> options. </param>
+	public WorkflowEngineClient(HttpClient httpClient, IOptions<WorkflowEngineOptions> configOptions)
 	{
 		_httpClient = httpClient;
-		_eloUpdateNotifyUri = configuration["WORKFLOW_ENGINE_ELO_NOTIFY_URI"] !;
+		_eloUpdateNotifyUri = configOptions.Value.EloNotifyUri
+							  ?? throw new ArgumentNullException(nameof(configOptions), "EloUpdateNotifyUri must be set.");
 	}
 
 	/// <summary>
 	/// Notifies the workflow engine that an Elo update has occurred.
 	/// </summary>
-	/// <param name="request">The Elo update notification request details.</param>
-	/// <returns>
-	/// The response from the workflow engine acknowledging the update,
-	/// or <c>null</c> if no response was received.
-	/// </returns>
+	/// <param name="request"> request. </param>
+	/// <returns>Task of ELoUpdateNotification.</returns>
 	public async Task<EloUpdateNotificationResponse?> NotifyEloUpdatedAsync(EloUpdateNotificationRequest request)
 	{
+		if (request is null)
+		{
+			throw new ArgumentNullException(nameof(request));
+		}
+
 		try
 		{
-			var response = await _httpClient.PostAsJsonAsync(_eloUpdateNotifyUri, request);
+			using var response = await _httpClient.PostAsJsonAsync(_eloUpdateNotifyUri, request);
 
 			if (!response.IsSuccessStatusCode)
 			{
-				// Optionally log or inspect the status code and content
-				var errorContent = await response.Content.ReadAsStringAsync();
-
-				// Log errorContent if needed
 				return null;
 			}
 
 			return await response.Content.ReadFromJsonAsync<EloUpdateNotificationResponse>();
 		}
-		catch (HttpRequestException)
+		catch (Exception ex) when (ex is HttpRequestException or NotSupportedException or JsonException)
 		{
-			// Handle network-level errors
-			// Log exception ex if needed
-			return null;
-		}
-		catch (NotSupportedException)
-		{
-			// Handle unsupported content-type
-			return null;
-		}
-		catch (JsonException)
-		{
-			// Handle JSON deserialization errors
 			return null;
 		}
 	}
