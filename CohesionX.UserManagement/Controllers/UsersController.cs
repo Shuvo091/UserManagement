@@ -1,7 +1,9 @@
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -30,14 +32,14 @@ namespace CohesionX.UserManagement.Controllers
 		/// <param name="userService">Service that handles user-related operations such as registration, updates, and retrieval.</param>
 		/// <param name="eloService">Service that manages Elo rating calculations and history.</param>
 		/// <param name="redisService">Service for managing Redis-based caching and availability tracking.</param>
-		/// <param name="configuration">Application configuration used to access settings.</param>
+		/// <param name="appContantOptions">Application configuration used to access settings.</param>
 		/// <param name="serviceScopeFactory">Factory for creating service scopes, used for resolving scoped services inside background tasks.</param>
 		/// <param name="verificationRequirementService">Service to manage and retrieve verification requirements and policies.</param>
 		public UsersController(
 			IUserService userService,
 			IEloService eloService,
 			IRedisService redisService,
-			IConfiguration configuration,
+			IOptions<AppConstantsOptions> appContantOptions,
 			IServiceScopeFactory serviceScopeFactory,
 			IVerificationRequirementService verificationRequirementService)
 		{
@@ -45,11 +47,7 @@ namespace CohesionX.UserManagement.Controllers
 			_eloService = eloService;
 			_verificationRequirementService = verificationRequirementService;
 			_redisService = redisService;
-			var defaultBookoutStr = configuration["DEFAULT_BOOKOUT_MINUTES"];
-			if (!int.TryParse(defaultBookoutStr, out var defaultBookout))
-			{
-				defaultBookout = 480;
-			}
+			var defaultBookout = appContantOptions.Value.DefaultBookoutMinutes;
 
 			_defaultBookoutInMinutes = defaultBookout;
 			_serviceScopeFactory = serviceScopeFactory;

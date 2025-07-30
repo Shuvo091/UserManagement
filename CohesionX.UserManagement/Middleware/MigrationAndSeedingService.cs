@@ -2,6 +2,7 @@
 using CohesionX.UserManagement.Middleware;
 using CohesionX.UserManagement.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CohesionX.UserManagement.Services;
 
@@ -11,17 +12,17 @@ namespace CohesionX.UserManagement.Services;
 public class MigrationAndSeedingService : IHostedService
 {
 	private readonly IServiceProvider _serviceProvider;
-	private readonly IConfiguration _configuration;
+	private readonly IOptions<DbSeederOptions> _dbSeederOptions;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MigrationAndSeedingService"/> class.
 	/// </summary>
 	/// <param name="serviceProvider">Service provider.</param>
-	/// <param name="configuration">For Dbseeder options from config.</param>
-	public MigrationAndSeedingService(IServiceProvider serviceProvider, IConfiguration configuration)
+	/// <param name="dbSeederOptions">For Dbseeder options from config.</param>
+	public MigrationAndSeedingService(IServiceProvider serviceProvider, IOptions<DbSeederOptions> dbSeederOptions)
 	{
 		_serviceProvider = serviceProvider;
-		_configuration = configuration;
+		_dbSeederOptions = dbSeederOptions;
 	}
 
 	/// <summary>
@@ -37,7 +38,7 @@ public class MigrationAndSeedingService : IHostedService
 		await context.Database.MigrateAsync(cancellationToken);
 
 		// Read seed path from config
-		var seedFilePath = _configuration["DbSeeder:SeedFilePath"];
+		var seedFilePath = _dbSeederOptions.Value.SeedFilePath;
 		if (string.IsNullOrWhiteSpace(seedFilePath))
 		{
 			throw new InvalidOperationException("SeedFilePath not configured.");

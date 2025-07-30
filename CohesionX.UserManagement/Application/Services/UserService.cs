@@ -1,9 +1,11 @@
 ﻿using System.Text.Json;
 using AutoMapper;
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -31,7 +33,7 @@ public class UserService : IUserService
 	/// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
 	/// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
 	/// <param name="passwordHasher">Utility for securely hashing and verifying user passwords.</param>
-	/// <param name="configuration">Application configuration used to retrieve settings and secrets.</param>
+	/// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
 	/// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
 	public UserService(
 		IUserRepository repo,
@@ -39,7 +41,7 @@ public class UserService : IUserService
 		IJobClaimRepository jobClaimRepo,
 		IMapper mapper,
 		IPasswordHasher passwordHasher,
-		IConfiguration configuration,
+		IOptions<AppConstantsOptions> appContantOptions,
 		IEloService eloService)
 	{
 		_repo = repo;
@@ -47,29 +49,15 @@ public class UserService : IUserService
 		_jobClaimRepo = jobClaimRepo;
 		_passwordHasher = passwordHasher;
 		_eloService = eloService;
-		var initEloStr = configuration["INITIAL_ELO_RATING"];
-		if (!int.TryParse(initEloStr, out var initElo))
-		{
-			initElo = 360;
-		}
 
+		var initElo = appContantOptions.Value.InitialEloRating;
 		_initElo = initElo;
 
-		var initMinEloProStr = configuration["MIN_ELO_REQUIRED_FOR_PRO"];
-		if (!int.TryParse(initMinEloProStr, out var minElo))
-		{
-			minElo = 1600;
-		}
+		var initMinEloPro = appContantOptions.Value.MinEloRequiredForPro;
+		_minEloRequiredForPro = initMinEloPro;
 
-		_minEloRequiredForPro = minElo;
-
-		var initMinJobsProStr = configuration["MIN_JOBS_REQUIRED_FOR_PRO"];
-		if (!int.TryParse(initMinJobsProStr, out var minJobs))
-		{
-			minJobs = 500;
-		}
-
-		_minJobsRequiredForPro = minJobs;
+		var initMinJobsPro = appContantOptions.Value.MinJobsRequiredForPro;
+		_minJobsRequiredForPro = initMinJobsPro;
 	}
 
 	/// <summary>

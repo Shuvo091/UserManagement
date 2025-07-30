@@ -1,7 +1,9 @@
 ﻿using AutoMapper;
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Domain.Entities;
 using CohesionX.UserManagement.Persistence.Interfaces;
+using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -32,7 +34,7 @@ public class EloService : IEloService
 	/// <param name="unitOfWork">Unit of Work pattern implementation to coordinate repository operations and transaction management.</param>
 	/// <param name="redisService">Service for interacting with Redis cache and data storage.</param>
 	/// <param name="mapper">AutoMapper instance used for mapping between domain entities and DTOs.</param>
-	/// <param name="config">Application configuration interface for accessing settings.</param>
+	/// <param name="appContantOptions"> Options for app contants. </param>
 	/// <param name="workflowEngineClient">Client for communicating with the external workflow engine API.</param>
 	public EloService(
 		IEloRepository repo,
@@ -41,7 +43,7 @@ public class EloService : IEloService
 		IUnitOfWork unitOfWork,
 		IRedisService redisService,
 		IMapper mapper,
-		IConfiguration config,
+		IOptions<AppConstantsOptions> appContantOptions,
 		IWorkflowEngineClient workflowEngineClient)
 	{
 		_repo = repo;
@@ -50,9 +52,9 @@ public class EloService : IEloService
 		_redisService = redisService;
 		_userStatRepo = userStatRepo;
 		_mapper = mapper;
-		_eloKFactorNew = int.TryParse(config["ELO_K_FACTOR_NEW"], out int parsedValue) ? parsedValue : 32;
-		_eloKFactorEstablished = int.TryParse(config["ELO_K_FACTOR_ESTABLISHED"], out int parsedValue2) ? parsedValue2 : 24;
-		_eloKFactorExpert = int.TryParse(config["ELO_K_FACTOR_EXPERT"], out int parsedValue3) ? parsedValue3 : 16;
+		_eloKFactorNew = appContantOptions.Value.EloKFactorNew;
+		_eloKFactorEstablished = appContantOptions.Value.EloKFactorEstablished;
+		_eloKFactorExpert = appContantOptions.Value.EloKFactorExpert;
 		_workflowEngineClient = workflowEngineClient;
 	}
 

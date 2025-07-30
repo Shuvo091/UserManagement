@@ -1,11 +1,13 @@
 // xUnit test setup for UsersController
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
 using CohesionX.UserManagement.Controllers;
 using CohesionX.UserManagement.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -15,13 +17,13 @@ public class UsersControllerTests
 	private readonly Mock<IEloService> _eloServiceMock = new();
 	private readonly Mock<IRedisService> _redisServiceMock = new();
 	private readonly Mock<IVerificationRequirementService> _verificationRequirementServiceMock = new();
-	private readonly Mock<IConfiguration> _configurationMock = new();
+	private readonly Mock<IOptions<AppConstantsOptions>> _configurationMock = new();
 	private readonly Mock<IServiceScopeFactory> _scopeFactoryMock = new();
 	private readonly UsersController _controller;
 
 	public UsersControllerTests()
 	{
-		_configurationMock.Setup(c => c["DEFAULT_BOOKOUT_MINUTES"]).Returns("60");
+		_configurationMock.Setup(c => c.Value.DefaultBookoutMinutes.ToString()).Returns("60");
 		_controller = new UsersController(
 			_userServiceMock.Object,
 			_eloServiceMock.Object,

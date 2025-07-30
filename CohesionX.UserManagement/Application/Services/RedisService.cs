@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
 using CohesionX.UserManagement.Application.Interfaces;
+using CohesionX.UserManagement.Application.Models;
+using Microsoft.Extensions.Options;
 using SharedLibrary.Cache.Services.Interfaces;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -20,19 +22,15 @@ public class RedisService : IRedisService
 	/// Initializes a new instance of the <see cref="RedisService"/> class.
 	/// </summary>
 	/// <param name="cache">The cache service for Redis operations.</param>
-	/// <param name="configuration">The configuration for TTL settings.</param>
-	public RedisService(ICacheService cache, IConfiguration configuration)
+	/// <param name="appContantOptions"> app contants options. </param>
+	public RedisService(ICacheService cache, IOptions<AppConstantsOptions> appContantOptions)
 	{
 		_cache = cache;
 
 		// Read TTL in minutes from config, fallback to 360 minutes (6 hours) if missing or invalid
-		var ttlMinutesStr = configuration["REDIS_CACHE_TTL_MINUTES"];
-		if (!int.TryParse(ttlMinutesStr, out var ttlMinutes))
-		{
-			ttlMinutes = 360;
-		}
+		var ttlMinutesStr = appContantOptions.Value.RedisCacheTtlMinutes;
 
-		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutes);
+		_availabilityTtl = TimeSpan.FromMinutes(ttlMinutesStr);
 	}
 
 	/// <inheritdoc />
