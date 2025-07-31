@@ -48,7 +48,7 @@ builder.Services.RegisterOpenTelemetry(configuration);
 var app = builder.Build();
 
 // Swagger UI with OAuth2 (in dev/docker only)
-if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUIWithOAuth(configuration);
