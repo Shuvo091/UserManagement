@@ -447,7 +447,7 @@ public class UserService : IUserService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <returns>The professional status response.</returns>
-	public Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
+	public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
 	{
 		throw new NotImplementedException();
 	}

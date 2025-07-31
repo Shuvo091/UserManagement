@@ -28,8 +28,8 @@ public class UserRepository : Repository<User>, IUserRepository
 	/// </summary>
 	/// <param name="email">The email address to check.</param>
 	/// <returns>A task representing the asynchronous operation, containing <c>true</c> if the email exists; otherwise, <c>false</c>.</returns>
-	public Task<bool> EmailExistsAsync(string email)
-		=> _context.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
+	public async Task<bool> EmailExistsAsync(string email)
+		=> await _context.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
 
 	/// <summary>
 	/// Retrieves a user by their unique identifier asynchronously, optionally including related data.
@@ -92,14 +92,14 @@ public class UserRepository : Repository<User>, IUserRepository
 	/// If <c>true</c>, includes related entities such as dialects, statistics, Elo histories, job completions, job claims, audit logs, and verification records.
 	/// </param>
 	/// <returns>A task representing the asynchronous operation, containing a list of users.</returns>
-	public Task<List<User>> GetAllUsers(bool includeRelated = false)
+	public async Task<List<User>> GetAllUsers(bool includeRelated = false)
 	{
 		if (!includeRelated)
 		{
-			return _context.Users.AsNoTracking().ToListAsync();
+			return await _context.Users.AsNoTracking().ToListAsync();
 		}
 
-		return _context.Users
+		return await _context.Users
 			.Include(u => u.Dialects)
 			.Include(u => u.Statistics)
 			.Include(u => u.EloHistories)
@@ -116,9 +116,9 @@ public class UserRepository : Repository<User>, IUserRepository
 	/// </summary>
 	/// <param name="predicate">The filter expression.</param>
 	/// <returns>A task representing the asynchronous operation, containing the list of filtered users.</returns>
-	public Task<List<User>> GetFilteredListAsync(Expression<Func<User, bool>> predicate)
+	public async Task<List<User>> GetFilteredListAsync(Expression<Func<User, bool>> predicate)
 	{
-		return _context.Users.AsNoTracking().Where(predicate).ToListAsync();
+		return await _context.Users.AsNoTracking().Where(predicate).ToListAsync();
 	}
 
 	/// <summary>
@@ -128,9 +128,9 @@ public class UserRepository : Repository<User>, IUserRepository
 	/// <param name="predicate">The filter expression.</param>
 	/// <param name="selector">The projection expression.</param>
 	/// <returns>A task representing the asynchronous operation, containing the projected list.</returns>
-	public Task<List<T>> GetFilteredListProjectedToAsync<T>(Expression<Func<User, bool>> predicate, Expression<Func<User, T>> selector)
+	public async Task<List<T>> GetFilteredListProjectedToAsync<T>(Expression<Func<User, bool>> predicate, Expression<Func<User, T>> selector)
 	{
-		return _context.Users
+		return await _context.Users
 			.AsNoTracking()
 			.Where(predicate)
 			.Select(selector)

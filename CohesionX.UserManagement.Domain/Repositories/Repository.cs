@@ -99,5 +99,5 @@ public class Repository<T> : IRepository<T>
 	/// Saves all changes made in this context to the database asynchronously.
 	/// </summary>
 	/// <returns>A task representing the asynchronous save operation, returning the number of state entries written to the database.</returns>
-	public Task<int> SaveChangesAsync() => _context.SaveChangesAsync();
+	public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }
