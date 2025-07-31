@@ -12,6 +12,7 @@
     <UserSecretsId>d9702f22-aa92-46e2-b49b-2bfe8eec3926</UserSecretsId>
     <DockerfileFile>../Dockerfile.debug</DockerfileFile>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
 
   <ItemGroup>

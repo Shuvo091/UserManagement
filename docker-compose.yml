@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: CohesionX_UserManagement
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Itachi007!
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  cohesionx.usermanagement:
+    image: ${DOCKER_REGISTRY-}cohesionxusermanagement
+    build:
+      context: .
+      dockerfile: CohesionX.UserManagement/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "9090:80"
+    environment:
+      DB_CONNECTION_STRING__db_secrets: "Host=postgres;Port=5432;Database=CohesionX_UserManagement;Username=postgres;Password=Itachi007!;SslMode=Disable"
+      Redis__ConnectionString: "redis:6379"
+      IdentityServer__Authority: "https://dev.vectormind.chat/security"
+      IdentityServer__ApiName: "api"
+      ENABLE_GRPC: "false"
+      ENABLE_ID_DOCUMENT_COLLECTION: "true"
+      POPIA_COMPLIANCE_MODE: "strict"
+      INITIAL_ELO_RATING: "1200"
+      MIN_ELO_REQUIRED_FOR_PRO: "1600"
+      MIN_JOBS_REQUIRED_FOR_PRO: "500"
+      ELO_K_FACTOR_NEW: "32"
+      ELO_K_FACTOR_ESTABLISHED: "24"
+      ELO_K_FACTOR_EXPERT: "16"
+      JOB_TIMEOUT_HOURS: "4"
+      MAX_CONCURRENT_JOBS: "3"
+      REDIS_CACHE_TTL_MINUTES: "360"
+      DEFAULT_BOOKOUT_MINUTES: "480"
+      WORKFLOW_ENGINE_BASE_URI: "https://workflow-engine-service"
+      WORKFLOW_ENGINE_ELO_NOTIFY_URI: "https://workflow-engine-service"
+      AllowedHosts: "*"
+      ASPNETCORE_URLS: "http://+:80"
+      ASPNETCORE_ENVIRONMENT: Production
