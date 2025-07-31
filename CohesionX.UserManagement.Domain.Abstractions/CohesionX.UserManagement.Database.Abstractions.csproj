@@ -7,6 +7,7 @@
   </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CohesionX.Shared" Version="1.0.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.18" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.18">
             <PrivateAssets>all</PrivateAssets>
@@ -17,9 +18,5 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj" />
     </ItemGroup>
 </Project>

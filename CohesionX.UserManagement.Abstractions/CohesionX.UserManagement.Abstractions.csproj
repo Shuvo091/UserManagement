@@ -11,8 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CohesionX.Shared" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CohesionX.UserManagement.Domain.Abstractions\CohesionX.UserManagement.Database.Abstractions.csproj" />
-    <ProjectReference Include="..\Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj" />
   </ItemGroup>
 
 </Project>

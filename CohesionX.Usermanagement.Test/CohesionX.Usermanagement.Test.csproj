@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CohesionX.Shared" Version="1.0.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" />
@@ -19,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CohesionX.UserManagement\CohesionX.UserManagement.csproj" />
-    <ProjectReference Include="..\Shared\SharedLibrary\SharedLibrary\SharedLibrary.csproj" />
   </ItemGroup>
 
   <ItemGroup>
