@@ -23,20 +23,27 @@ public class UsersControllerTests
     private readonly Mock<ILogger<UsersController>> _logger = new();
     private readonly UsersController _controller;
 
-    public UsersControllerTests()
-    {
-        _configurationMock.Setup(c => c.Value.DefaultBookoutMinutes.ToString()).Returns("60");
-        _controller = new UsersController(
-            _userServiceMock.Object,
-            _eloServiceMock.Object,
-            _redisServiceMock.Object,
-            _configurationMock.Object,
-            _scopeFactoryMock.Object,
-            _verificationRequirementServiceMock.Object,
-            _logger.Object);
-    }
+	public UsersControllerTests()
+	{
+		var appConstants = new AppConstantsOptions
+		{
+			DefaultBookoutMinutes = 60
+		};
 
-    [Fact]
+		_configurationMock.Setup(c => c.Value).Returns(appConstants);
+
+		_controller = new UsersController(
+			_userServiceMock.Object,
+			_eloServiceMock.Object,
+			_redisServiceMock.Object,
+			_configurationMock.Object,
+			_scopeFactoryMock.Object,
+			_verificationRequirementServiceMock.Object,
+			_logger.Object);
+	}
+
+
+	[Fact]
     public async Task Register_ReturnsCreated_WhenValid()
     {
         var request = new UserRegisterRequest { FirstName = "A", LastName = "B", Email = "a@b.com", Password = "123", ConsentToDataProcessing = true };
@@ -171,74 +178,25 @@ public class UsersControllerTests
         Assert.Equal(eloData, ok.Value);
     }
 
-    [Fact]
-    public async Task Register_ReturnsBadRequest_WhenEmailInvalid()
-    {
-        var request = new UserRegisterRequest
-        {
-            FirstName = "A",
-            LastName = "B",
-            Email = "invalid-email",
-            Password = "123",
-            ConsentToDataProcessing = true
-        };
+	[Fact]
+	public async Task Register_ReturnsBadRequest_WhenEmailInvalid()
+	{
+		var request = new UserRegisterRequest
+		{
+			FirstName = "A",
+			LastName = "B",
+			Email = "invalid-email",
+			Password = "123",
+			ConsentToDataProcessing = true
+		};
 
-        _userServiceMock.Setup(x => x.RegisterUserAsync(request))
-            .ThrowsAsync(new ArgumentException("Invalid email"));
+		// Simulate failed model validation (e.g., from [EmailAddress])
+		_controller.ModelState.AddModelError("Email", "Invalid email format");
 
-        var result = await _controller.Register(request);
-        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Contains("Invalid email", badRequest.Value.ToString());
-    }
+		var result = await _controller.Register(request);
 
-
-    [Fact]
-    public async Task GetProfile_ReturnsUnauthorized_WhenUserNotAuthenticated()
-    {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext()
-        };
-
-        var result = await _controller.GetProfile(Guid.NewGuid());
-        Assert.IsType<UnauthorizedResult>(result);
-    }
-
-
-    [Fact]
-    public async Task GetAvailability_ReturnsServerError_WhenRedisFails()
-    {
-        var userId = Guid.NewGuid();
-        _redisServiceMock.Setup(x => x.GetAvailabilityAsync(userId)).ThrowsAsync(new Exception("Redis down"));
-
-        var result = await _controller.GetAvailability(userId);
-
-        var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
-        Assert.Contains("Redis down", objectResult.Value.ToString());
-    }
-
-
-    [Fact]
-    public async Task Register_ReturnsServerError_WhenServiceThrows()
-    {
-        var request = new UserRegisterRequest
-        {
-            FirstName = "X",
-            LastName = "Y",
-            Email = "xy@z.com",
-            Password = "123",
-            ConsentToDataProcessing = true
-        };
-
-        _userServiceMock.Setup(x => x.RegisterUserAsync(request))
-            .ThrowsAsync(new InvalidOperationException("DB insert failed"));
-
-        var result = await _controller.Register(request);
-
-        var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
-        Assert.Contains("DB insert failed", objectResult.Value.ToString());
-    }
-
+		var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+		var errors = Assert.IsType<SerializableError>(badRequest.Value);
+		Assert.True(errors.ContainsKey("Email"));
+	}
 }

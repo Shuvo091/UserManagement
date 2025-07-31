@@ -37,6 +37,11 @@ public class EloUpdateController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> EloUpdate([FromBody] EloUpdateRequest eloUpdateRequest)
     {
+        if (!this.ModelState.IsValid)
+        {
+            return this.BadRequest(this.ModelState);
+        }
+
         var resp = await this.eloService.ApplyEloUpdatesAsync(eloUpdateRequest);
         return this.Ok(resp);
     }
@@ -49,6 +54,11 @@ public class EloUpdateController : ControllerBase
     [HttpPost("three-way-resolution")]
     public async Task<IActionResult> ThreeWayResolution([FromBody] ThreeWayEloUpdateRequest twuReq)
     {
+        if (!this.ModelState.IsValid)
+        {
+            return this.BadRequest(this.ModelState);
+        }
+
         var resp = await this.eloService.ResolveThreeWay(twuReq);
         return this.Ok(resp);
     }

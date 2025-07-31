@@ -89,6 +89,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpPost("{userId}/verify")]
         public async Task<IActionResult> VerifyUser([FromRoute] Guid userId, [FromBody] VerificationRequest verificationRequest)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var requirements = await this.verificationRequirementService.GetVerificationRequirement();
             if (requirements is null)
             {
@@ -162,6 +167,11 @@ namespace CohesionX.UserManagement.Controllers;
             [FromQuery] int? maxWorkload,
             [FromQuery] int? limit)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var availableUsersResp = new List<UserAvailabilityResponse>();
             var users = await this.userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
             if (!users.Any())
@@ -212,6 +222,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpGet("{userId}/availability")]
         public async Task<IActionResult> GetAvailability([FromRoute] Guid userId)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var availability = await this.redisService.GetAvailabilityAsync(userId);
             return this.Ok(availability == null ? "User availability Not Found" : availability);
         }
@@ -225,6 +240,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpPatch("{userId}/availability")]
         public async Task<IActionResult> PatchAvailability([FromRoute] Guid userId, [FromBody] UserAvailabilityUpdateRequest availabilityUpdate)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var ipAddress = this.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var userAgent = this.Request.Headers["User-Agent"].ToString() ?? "unknown";
             var existingAvailability = await this.redisService.GetAvailabilityAsync(userId)
@@ -274,6 +294,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpGet("{userId}/profile")]
         public async Task<IActionResult> GetProfile([FromRoute] Guid userId)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var profile = await this.userService.GetProfileAsync(userId);
             return this.Ok(profile);
         }
@@ -286,6 +311,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpGet("{userId}/elo-history")]
         public async Task<IActionResult> GetEloHistory([FromRoute] Guid userId)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var profile = await this.eloService.GetEloHistoryAsync(userId);
             return this.Ok(profile);
         }
@@ -299,6 +329,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpPost("{userId}/claim-job")]
         public async Task<IActionResult> ClaimJob([FromRoute] Guid userId, [FromBody] ClaimJobRequest claimJobRequest)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var availability = await this.redisService.GetAvailabilityAsync(userId);
 
             if (availability == null || availability.Status != UserAvailabilityType.Available.ToDisplayName())
@@ -355,6 +390,11 @@ namespace CohesionX.UserManagement.Controllers;
         [HttpPost("{userId}/validate-tiebreaker-claim")]
         public async Task<IActionResult> ValidateTiebreakerClaim([FromRoute] Guid userId, [FromBody] ValidateTiebreakerClaimRequest tiebreakerRequest)
         {
+            if (!this.ModelState.IsValid)
+            {
+                return this.BadRequest(this.ModelState);
+            }
+
             var profile = await this.userService.ValidateTieBreakerClaim(userId, tiebreakerRequest);
             if (profile.IsOriginalTranscriber)
             {
