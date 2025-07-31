@@ -100,6 +100,7 @@ public class EloService : IEloService
         }
 
         var eloHistoryRecords = new List<EloHistory>();
+        var cutOffDate = DateTime.UtcNow.AddDays(-7);
 
         foreach (var eloChange in request.RecommendedEloChanges)
         {
@@ -148,7 +149,6 @@ public class EloService : IEloService
             });
 
             // For redis update
-            var cutOffDate = DateTime.UtcNow.AddDays(-7);
             var recentHistory = await this.repo.FindAsync(
                 eh => eh.UserId == eloChange.TranscriberId && eh.ChangedAt >= cutOffDate);
             recentHistory.Add(eloHistoryRecord);
@@ -279,7 +279,7 @@ public class EloService : IEloService
 
         var recentHistory = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
 
-        if (recentHistory == null || recentHistory.Count < 2)
+        if (recentHistory == null || recentHistory.Count == 0)
         {
             return $"0_over_{days}_days";
         }
