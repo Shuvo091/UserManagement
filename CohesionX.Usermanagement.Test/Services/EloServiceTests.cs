@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
+﻿using System.Linq.Expressions;
 using AutoMapper;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
@@ -14,10 +10,12 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.AppEnums;
 using SharedLibrary.RequestResponseModels.UserManagement;
-using Xunit;
 
 namespace CohesionX.UserManagement.Application.Tests;
 
+/// <summary>
+/// Tests for ELO service.
+/// </summary>
 public class EloServiceTests
 {
     private readonly Mock<IEloRepository> _eloRepo = new ();
@@ -29,6 +27,9 @@ public class EloServiceTests
     private readonly Mock<IWorkflowEngineClient> _wfClient = new ();
     private readonly EloService _service;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EloServiceTests"/> class.
+    /// </summary>
     public EloServiceTests()
     {
         // Setup UnitOfWork to return repositories
@@ -54,6 +55,10 @@ public class EloServiceTests
             Mock.Of<ILogger<EloService>>());
     }
 
+    /// <summary>
+    /// ApplyEloUpdatesAsync_HappyPath_CallsReposAndNotifies.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ApplyEloUpdatesAsync_HappyPath_CallsReposAndNotifies()
     {
@@ -72,7 +77,7 @@ public class EloServiceTests
             ComparisonMetadata = new ComparisonMetadataDto
             {
                 QaMethod = "method",
-                ComparisonType = "type"
+                ComparisonType = "type",
             },
         };
 
@@ -101,6 +106,10 @@ public class EloServiceTests
         this._redis.Verify(x => x.SetUserEloAsync(user2, It.IsAny<UserEloRedisDto>()), Times.Once);
     }
 
+    /// <summary>
+    /// ApplyEloUpdatesAsync_Throws_When_MissingStats.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ApplyEloUpdatesAsync_Throws_When_MissingStats()
     {
@@ -113,6 +122,10 @@ public class EloServiceTests
         await Assert.ThrowsAsync<Exception>(async () => await this._service.ApplyEloUpdatesAsync(req));
     }
 
+    /// <summary>
+    /// ApplyEloUpdatesAsync_Throws_When_TooManyChanges.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ApplyEloUpdatesAsync_Throws_When_TooManyChanges()
     {
@@ -125,6 +138,10 @@ public class EloServiceTests
         await Assert.ThrowsAsync<Exception>(async () => await this._service.ApplyEloUpdatesAsync(req));
     }
 
+    /// <summary>
+    /// GetEloHistoryAsync_HappyPath_ComputesHistory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task GetEloHistoryAsync_HappyPath_ComputesHistory()
     {
@@ -137,7 +154,7 @@ public class EloServiceTests
             EloHistories = new List<EloHistory>
             {
                 new () { ChangedAt = DateTime.UtcNow.AddDays(-2), OldElo = 1200, NewElo = 1250, OpponentElo = 1300, Outcome = "win", JobId = "j1" },
-                new () { ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1250, NewElo = 1300, OpponentElo = 1200, Outcome = "win", JobId = "j2" }
+                new () { ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1250, NewElo = 1300, OpponentElo = 1200, Outcome = "win", JobId = "j2" },
             },
         };
         this._userRepo.Setup(x => x.GetUserByIdAsync(userId, true)).ReturnsAsync(user);
@@ -151,16 +168,26 @@ public class EloServiceTests
         Assert.InRange(resp.Trends.WinRate, 0, 100);
     }
 
+    /// <summary>
+    /// ApplyEloUpdatesAsync_HappyPath_CallsReposAndNotifies.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task GetEloHistoryAsync_Throws_When_UserNotFound()
     {
         // Arrange
-        this._userRepo.Setup(x => x.GetUserByIdAsync(It.IsAny<Guid>(), true)).ReturnsAsync((User)null);
+        this._userRepo.Setup(x => x.GetUserByIdAsync(It.IsAny<Guid>(), true)).ReturnsAsync((User?)null);
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(async () => await this._service.GetEloHistoryAsync(Guid.NewGuid()));
     }
 
+    /// <summary>
+    /// GetEloTrend_ListOverload_Works.
+    /// </summary>
+    /// <param name="count"> count of changes. </param>
+    /// <param name="days"> change timeline. </param>
+    /// <param name="expected"> expected result. </param>
     [Theory]
     [InlineData(0, 10, "0_over_10_days")]
     [InlineData(5, 3, "+5_over_3_days")]
@@ -182,6 +209,10 @@ public class EloServiceTests
         Assert.Equal(expected, trend);
     }
 
+    /// <summary>
+    /// BulkEloTrendAsync_Returns_Default_For_NoHistory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task BulkEloTrendAsync_Returns_Default_For_NoHistory()
     {
@@ -200,6 +231,9 @@ public class EloServiceTests
         Assert.All(dict.Values, v => Assert.Equal("0_over_7_days", v));
     }
 
+    /// <summary>
+    /// GetWinRate_CalculatesCorrectly.
+    /// </summary>
     [Fact]
     public void GetWinRate_CalculatesCorrectly()
     {
@@ -219,6 +253,9 @@ public class EloServiceTests
         Assert.Equal(2d / 3 * 100, rate);
     }
 
+    /// <summary>
+    /// GetAverageOpponentElo_CalculatesCorrectly.
+    /// </summary>
     [Fact]
     public void GetAverageOpponentElo_CalculatesCorrectly()
     {
@@ -236,6 +273,10 @@ public class EloServiceTests
         Assert.Equal(1050, avg);
     }
 
+    /// <summary>
+    /// ResolveThreeWay_HappyPath_AppliesAll.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ResolveThreeWay_HappyPath_AppliesAll()
     {
@@ -251,7 +292,7 @@ public class EloServiceTests
             {
                 new () { TranscriberId = id1, Role = ThreeWayTranscriberRoleType.OriginalTranscriber1.ToDisplayName(), EloChange = 10, Outcome = "majority_winner" },
                 new () { TranscriberId = id2, Role = ThreeWayTranscriberRoleType.OriginalTranscriber2.ToDisplayName(), EloChange = -5, Outcome = "minority_loser" },
-                new () { TranscriberId = id3, Role = ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName(), EloChange = -5, Outcome = "minority_loser" }
+                new () { TranscriberId = id3, Role = ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName(), EloChange = -5, Outcome = "minority_loser" },
             },
         };
         var statsList = new List<UserStatistics>
@@ -277,6 +318,11 @@ public class EloServiceTests
         this._wfClient.Verify(x => x.NotifyEloUpdatedAsync(It.IsAny<EloUpdateNotificationRequest>()), Times.Once);
     }
 
+    /// <summary>
+    /// ResolveThreeWay_Throws_When_InvalidCount.
+    /// </summary>
+    /// <param name="count"> total count. </param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Theory]
     [InlineData(0)]
     [InlineData(2)]
