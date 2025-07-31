@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CohesionX.UserManagement.Domain.Abstractions\CohesionX.UserManagement.Database.Abstractions.csproj" />
+    <ProjectReference Include="..\CohesionX.UserManagement.Database.Abstractions\CohesionX.UserManagement.Database.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

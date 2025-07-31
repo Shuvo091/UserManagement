@@ -16,8 +16,8 @@ COPY ["Nuget.Config", "."]
 COPY ["CohesionX.UserManagement/CohesionX.UserManagement.csproj", "CohesionX.UserManagement/"]
 COPY ["CohesionX.UserManagement.Application/CohesionX.UserManagement.Application.csproj", "CohesionX.UserManagement.Application/"]
 COPY ["CohesionX.UserManagement.Abstractions/CohesionX.UserManagement.Abstractions.csproj", "CohesionX.UserManagement.Abstractions/"]
-COPY ["CohesionX.UserManagement.Domain.Abstractions/CohesionX.UserManagement.Database.Abstractions.csproj", "CohesionX.UserManagement.Domain.Abstractions/"]
-COPY ["CohesionX.UserManagement.Domain/CohesionX.UserManagement.Database.csproj", "CohesionX.UserManagement.Domain/"]
+COPY ["CohesionX.UserManagement.Database.Abstractions/CohesionX.UserManagement.Database.Abstractions.csproj", "CohesionX.UserManagement.Database.Abstractions/"]
+COPY ["CohesionX.UserManagement.Database/CohesionX.UserManagement.Database.csproj", "CohesionX.UserManagement.Database/"]
 RUN dotnet restore "./CohesionX.UserManagement/CohesionX.UserManagement.csproj"
 COPY . .
 WORKDIR "/src/CohesionX.UserManagement"

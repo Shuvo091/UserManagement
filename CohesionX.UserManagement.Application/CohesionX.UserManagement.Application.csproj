@@ -14,7 +14,7 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\CohesionX.UserManagement.Abstractions\CohesionX.UserManagement.Abstractions.csproj" />
-        <ProjectReference Include="..\CohesionX.UserManagement.Domain\CohesionX.UserManagement.Database.csproj" />
+        <ProjectReference Include="..\CohesionX.UserManagement.Database\CohesionX.UserManagement.Database.csproj" />
     </ItemGroup>
 
 </Project>

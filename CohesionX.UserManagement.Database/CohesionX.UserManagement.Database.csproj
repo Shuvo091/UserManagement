@@ -10,15 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Enums\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="CohesionX.SharedLibrary" Version="7.31.25.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CohesionX.UserManagement.Database.Abstractions\CohesionX.UserManagement.Database.Abstractions.csproj" />
+    <ProjectReference Include="..\CohesionX.UserManagement.Domain.Abstractions\CohesionX.UserManagement.Database.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>
