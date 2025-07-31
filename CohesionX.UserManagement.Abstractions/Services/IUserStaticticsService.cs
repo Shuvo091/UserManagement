@@ -13,7 +13,7 @@ public interface IUserStaticticsService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <returns>The user's statistics entity.</returns>
-	Task<UserStatistics> GetUserStatisticsAsync(Guid userId);
+	UserStatistics GetUserStatisticsAsync(Guid userId);
 
 	/// <summary>
 	/// Updates the statistics for a specific user based on a recommended Elo change.
@@ -21,5 +21,5 @@ public interface IUserStaticticsService
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="userStatistics">The recommended Elo from QA to change data.</param>
 	/// <returns>The updated user statistics entity.</returns>
-	Task<UserStatistics> UpdateUserStatisticsAsync(Guid userId, RecommendedEloChangeDto userStatistics);
+	UserStatistics UpdateUserStatisticsAsync(Guid userId, RecommendedEloChangeDto userStatistics);
 }

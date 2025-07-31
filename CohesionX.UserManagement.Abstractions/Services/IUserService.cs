@@ -43,7 +43,7 @@ public interface IUserService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <returns>The professional status response.</returns>
-	Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId);
+	GetProfessionalStatusResponse GetProfessionalStatus(Guid userId);
 
 	/// <summary>
 	/// Gets the user entity by user ID.

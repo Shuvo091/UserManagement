@@ -375,10 +375,9 @@ namespace CohesionX.UserManagement.Controllers
 		/// <param name="userId">The user's unique identifier.</param>
 		/// <returns>Professional status response or error details.</returns>
 		[HttpGet("{userId}/professional-status")]
-		public async Task<IActionResult> GetProfessionalStatus([FromRoute] Guid userId)
+		public IActionResult GetProfessionalStatus([FromRoute] Guid userId)
 		{
-			var status = await _userService.GetProfessionalStatus(userId);
-			return Ok(status);
+			throw new NotImplementedException("not yet been implemented.");
 		}
 
 		/// <summary>

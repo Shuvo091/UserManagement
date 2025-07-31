@@ -14,7 +14,7 @@ public class UserStatisticsService : IUserStaticticsService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <returns>The user's statistics entity.</returns>
-	public async Task<UserStatistics> GetUserStatisticsAsync(Guid userId)
+	public UserStatistics GetUserStatisticsAsync(Guid userId)
 	{
 		throw new NotImplementedException();
 	}
@@ -25,7 +25,7 @@ public class UserStatisticsService : IUserStaticticsService
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <param name="userStatistics">The recommended Elo change data.</param>
 	/// <returns>The updated user statistics entity.</returns>
-	public async Task<UserStatistics> UpdateUserStatisticsAsync(Guid userId, RecommendedEloChangeDto userStatistics)
+	public UserStatistics UpdateUserStatisticsAsync(Guid userId, RecommendedEloChangeDto userStatistics)
 	{
 		throw new NotImplementedException();
 	}

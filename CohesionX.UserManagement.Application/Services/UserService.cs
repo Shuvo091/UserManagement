@@ -32,7 +32,6 @@ public class UserService : IUserService
 	/// <param name="auditLogRepo">Repository for logging user-related audit events and changes.</param>
 	/// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
 	/// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
-	/// <param name="passwordHasher">Utility for securely hashing and verifying user passwords.</param>
 	/// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
 	/// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
 	/// <param name="logger"> logger. </param>
@@ -447,7 +446,7 @@ public class UserService : IUserService
 	/// </summary>
 	/// <param name="userId">The user's unique identifier.</param>
 	/// <returns>The professional status response.</returns>
-	public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
+	public GetProfessionalStatusResponse GetProfessionalStatus(Guid userId)
 	{
 		throw new NotImplementedException();
 	}
