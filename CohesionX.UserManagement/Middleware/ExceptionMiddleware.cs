@@ -1,9 +1,5 @@
-﻿using System.Net;
-using System.Text.Json;
-using CohesionX.UserManagement.Application.Exceptions;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-
+﻿using CohesionX.UserManagement.Application.Exceptions;
+using Serilog.Context;
 namespace CohesionX.UserManagement.Middleware;
 
 /// <summary>
@@ -32,33 +28,30 @@ public class ExceptionMiddleware
     /// <returns>Task. </returns>
     public async Task InvokeAsync(HttpContext context)
     {
-        try
-        {
-            await this.next(context);
-        }
-        catch (CustomException customEx)
-        {
-            this.logger.LogWarning(customEx, "Handled exception: {Message}", customEx.Message);
-            await HandleExceptionAsync(context, customEx.StatusCode, customEx.Message);
-        }
-        catch (Exception ex)
-        {
-            this.logger.LogError(ex, "Unhandled exception occurred.");
-            await HandleExceptionAsync(context, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
-        }
-    }
+        var requestId = context.TraceIdentifier;
+        var tenantId = context.Request.Headers.TryGetValue("X-Tenant-ID", out var tid) ? tid.ToString() : "unknown";
+        var userId = context.User?.FindFirst("sub")?.Value ?? context.User?.Identity?.Name ?? "anonymous";
 
-    private static Task HandleExceptionAsync(HttpContext context, HttpStatusCode code, string message)
-    {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)code;
-
-        var response = new
+        using (LogContext.PushProperty("RequestId", requestId))
+        using (LogContext.PushProperty("TenantId", tenantId))
+        using (LogContext.PushProperty("UserId", userId))
+        using (LogContext.PushProperty("RequestPath", context.Request.Path))
+        using (LogContext.PushProperty("HttpMethod", context.Request.Method))
         {
-            error = message,
-            statusCode = (int)code,
-        };
-
-        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            try
+            {
+                await this.next(context);
+            }
+            catch (CustomException customEx)
+            {
+                this.logger.LogWarning(customEx, "Handled custom exception: {Message}", customEx.Message);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Unhandled exception occurred.");
+                throw;
+            }
+        }
     }
 }

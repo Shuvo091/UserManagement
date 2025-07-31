@@ -9,15 +9,10 @@ using Prometheus;
 using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var configuration = builder.Configuration;
+var host = builder.Host;
 
 // 1. Controllers & Swagger
 services.AddControllers();
@@ -28,10 +23,10 @@ services.AddSwaggerGenWithOAuth(configuration);
 services.ConfigureOptions(configuration);
 
 // 4. Custom modules
-builder.Services.AddRedis(configuration);
-builder.Services.AddRedisCache(configuration);
+services.AddRedis(configuration);
+services.AddRedisCache(configuration);
 services.RegisterUserModule();
-builder.Services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>();
+services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>();
 services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 services.AddHostedService<MigrationAndSeedingService>();
 
@@ -39,11 +34,13 @@ services.AddHostedService<MigrationAndSeedingService>();
 services.AddAppDbContext(configuration);
 services.AddJwtAuthentication(configuration);
 services.AddAuthorizationPolicy(configuration);
-builder.Host.UseSerilog();
+
+// 6. Logger
+host.AddSerilogLogging();
 
 // Health
-builder.Services.AddHealthChecks();
-builder.Services.RegisterOpenTelemetry(configuration);
+services.AddHealthChecks();
+services.RegisterOpenTelemetry(configuration);
 
 var app = builder.Build();
 
