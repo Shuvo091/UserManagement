@@ -54,14 +54,17 @@ if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docke
     app.UseSwaggerUIWithOAuth(configuration);
 }
 
+// Collect default HTTP metrics and Expose /metrics endpoint for Prometheus
+app.UseHttpMetrics();
+app.MapPrometheusScrapingEndpoint("/metrics");
+
+// Expose health endpoint
+app.MapHealthChecks("/health");
+
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseHttpMetrics(); // Collect default HTTP metrics
-app.MapMetrics("/metrics"); // Expose metrics endpoint
-app.MapHealthChecks("/healthz"); // Expose health endpoint
-app.MapPrometheusScrapingEndpoint("/opentelemetry");
 
 app.Run();
