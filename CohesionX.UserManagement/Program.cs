@@ -5,6 +5,7 @@ using CohesionX.UserManagement.Config;
 using CohesionX.UserManagement.Database.Services;
 using CohesionX.UserManagement.Extensions;
 using CohesionX.UserManagement.Middleware;
+using Prometheus;
 using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 
@@ -40,6 +41,10 @@ services.AddJwtAuthentication(configuration);
 services.AddAuthorizationPolicy(configuration);
 builder.Host.UseSerilog();
 
+// Health
+builder.Services.AddHealthChecks();
+builder.Services.RegisterOpenTelemetry(configuration);
+
 var app = builder.Build();
 
 // Swagger UI with OAuth2 (in dev/docker only)
@@ -54,5 +59,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseHttpMetrics(); // Collect default HTTP metrics
+app.MapMetrics("/metrics"); // Expose metrics endpoint
+app.MapHealthChecks("/healthz"); // Expose health endpoint
+app.MapPrometheusScrapingEndpoint("/opentelemetry");
 
 app.Run();
