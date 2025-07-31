@@ -1,4 +1,8 @@
-﻿using System.Text.Json;
+﻿// <copyright file="DbSeeder.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using System.Text.Json;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -10,47 +14,47 @@ namespace CohesionX.UserManagement.Database.Seeding;
 /// </summary>
 public static class DbSeeder
 {
-	/// <summary>
-	/// Seeds the global user verification requirement into the database
-	/// if none currently exist.
-	/// </summary>
-	/// <param name="context">The application database context.</param>
-	/// <param name="dbSeederOptions">Options for DB seeder.</param>
-	/// <returns>A task that represents the asynchronous seeding operation.</returns>
-	/// <exception cref="FileNotFoundException">Thrown when the seed JSON file cannot be found.</exception>
-	/// <exception cref="InvalidOperationException">Thrown when seed data parsing fails.</exception>
-	public static async Task SeedGlobalVerificationRequirementAsync(AppDbContext context, DbSeederOptions dbSeederOptions)
-	{
-		if (await context.UserVerificationRequirements.AnyAsync())
-		{
-			return;
-		}
+    /// <summary>
+    /// Seeds the global user verification requirement into the database
+    /// if none currently exist.
+    /// </summary>
+    /// <param name="context">The application database context.</param>
+    /// <param name="dbSeederOptions">Options for DB seeder.</param>
+    /// <returns>A task that represents the asynchronous seeding operation.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the seed JSON file cannot be found.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when seed data parsing fails.</exception>
+    public static async Task SeedGlobalVerificationRequirementAsync(AppDbContext context, DbSeederOptions dbSeederOptions)
+    {
+        if (await context.UserVerificationRequirements.AnyAsync())
+        {
+            return;
+        }
 
-		// Use configured path
-		var relativePath = dbSeederOptions.SeedFilePath ?? "DbSeeder.json";
-		var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+        // Use configured path
+        var relativePath = dbSeederOptions.SeedFilePath ?? "DbSeeder.json";
+        var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
 
-		if (!File.Exists(jsonPath))
-		{
-			throw new FileNotFoundException("Seed file not found", jsonPath);
-		}
+        if (!File.Exists(jsonPath))
+        {
+            throw new FileNotFoundException("Seed file not found", jsonPath);
+        }
 
-		var json = await File.ReadAllTextAsync(jsonPath);
+        var json = await File.ReadAllTextAsync(jsonPath);
 
-		var model = JsonSerializer.Deserialize<UserVerificationRequirement>(json, new JsonSerializerOptions
-		{
-			PropertyNameCaseInsensitive = true,
-		});
+        var model = JsonSerializer.Deserialize<UserVerificationRequirement>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        });
 
-		if (model is null)
-		{
-			throw new InvalidOperationException("Failed to parse seed data.");
-		}
+        if (model is null)
+        {
+            throw new InvalidOperationException("Failed to parse seed data.");
+        }
 
-		model.Id = Guid.NewGuid();
-		model.ValidationRulesJson = JsonSerializer.Serialize(model.ValidationRules);
+        model.Id = Guid.NewGuid();
+        model.ValidationRulesJson = JsonSerializer.Serialize(model.ValidationRules);
 
-		context.UserVerificationRequirements.Add(model);
-		await context.SaveChangesAsync();
-	}
+        context.UserVerificationRequirements.Add(model);
+        await context.SaveChangesAsync();
+    }
 }

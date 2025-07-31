@@ -1,4 +1,8 @@
-﻿using CohesionX.UserManagement.Database.Abstractions.Repositories;
+﻿// <copyright file="IVerificationRequirementRepository.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using CohesionX.UserManagement.Database.Abstractions.Repositories;
 
 namespace CohesionX.UserManagement.Database.Abstractions.Entities;
 
@@ -8,11 +12,11 @@ namespace CohesionX.UserManagement.Database.Abstractions.Entities;
 /// </summary>
 public interface IVerificationRequirementRepository : IRepository<UserVerificationRequirement>
 {
-	/// <summary>
-	/// Retrieves the current global user verification requirement configuration.
-	/// </summary>
-	/// <returns>
-	/// A task representing the asynchronous operation, containing the <see cref="UserVerificationRequirement"/> if found; otherwise, <c>null</c>.
-	/// </returns>
-	Task<UserVerificationRequirement?> GetVerificationRequirement();
+    /// <summary>
+    /// Retrieves the current global user verification requirement configuration.
+    /// </summary>
+    /// <returns>
+    /// A task representing the asynchronous operation, containing the <see cref="UserVerificationRequirement"/> if found; otherwise, <c>null</c>.
+    /// </returns>
+    Task<UserVerificationRequirement?> GetVerificationRequirement();
 }

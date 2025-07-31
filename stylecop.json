@@ -1,7 +1,6 @@
 ﻿{
     "settings": {
         "documentationRules": {
-            "xmlHeader": true,
             "documentExposedElements": true,
             "documentInternalElements": false,
             "documentPrivateElements": false,

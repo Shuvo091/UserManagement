@@ -9,10 +9,10 @@ using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 
 Log.Logger = new LoggerConfiguration()
-	.Enrich.FromLogContext()
-	.WriteTo.Console()
-	.WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
-	.CreateLogger();
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -45,8 +45,8 @@ var app = builder.Build();
 // Swagger UI with OAuth2 (in dev/docker only)
 if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
 {
-	app.UseSwagger();
-	app.UseSwaggerUIWithOAuth(configuration);
+    app.UseSwagger();
+    app.UseSwaggerUIWithOAuth(configuration);
 }
 
 app.UseMiddleware<ExceptionMiddleware>();

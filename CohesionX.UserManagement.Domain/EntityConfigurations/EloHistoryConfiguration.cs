@@ -1,4 +1,8 @@
-﻿using CohesionX.UserManagement.Database.Abstractions.Entities;
+﻿// <copyright file="EloHistoryConfiguration.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using CohesionX.UserManagement.Database.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,20 +13,20 @@ namespace CohesionX.UserManagement.Database.EntityConfigurations;
 /// </summary>
 public class EloHistoryConfiguration : IEntityTypeConfiguration<EloHistory>
 {
-	/// <summary>
-	/// Applies configuration for the EloHistory entity including foreign keys and delete behavior.
-	/// </summary>
-	/// <param name="builder">The builder used to configure the EloHistory entity.</param>
-	public void Configure(EntityTypeBuilder<EloHistory> builder)
-	{
-		builder.HasOne(e => e.User)
-			   .WithMany(u => u.EloHistories)
-			   .HasForeignKey(e => e.UserId)
-			   .OnDelete(DeleteBehavior.Restrict);
+    /// <summary>
+    /// Applies configuration for the EloHistory entity including foreign keys and delete behavior.
+    /// </summary>
+    /// <param name="builder">The builder used to configure the EloHistory entity.</param>
+    public void Configure(EntityTypeBuilder<EloHistory> builder)
+    {
+        builder.HasOne(e => e.User)
+               .WithMany(u => u.EloHistories)
+               .HasForeignKey(e => e.UserId)
+               .OnDelete(DeleteBehavior.Restrict);
 
-		builder.HasOne(e => e.Comparison)
-			   .WithMany()
-			   .HasForeignKey(e => e.ComparisonId)
-			   .OnDelete(DeleteBehavior.Restrict);
-	}
+        builder.HasOne(e => e.Comparison)
+               .WithMany()
+               .HasForeignKey(e => e.ComparisonId)
+               .OnDelete(DeleteBehavior.Restrict);
+    }
 }

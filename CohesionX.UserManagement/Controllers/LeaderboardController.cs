@@ -1,36 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace CohesionX.UserManagement.Controllers
-{
-	/// <summary>
-	/// API controller for retrieving leaderboard data.
-	/// </summary>
-	#if !DEBUG || !SKIP_AUTH
+namespace CohesionX.UserManagement.Controllers;
+
+/// <summary>
+/// API controller for retrieving leaderboard data.
+/// </summary>
+#if !DEBUG || !SKIP_AUTH
 	[Authorize]
-	#endif
-	[ApiController]
-	[Route("api/v1/leaderboard")]
-	public class LeaderboardController : ControllerBase
-	{
-		private readonly ILogger<LeaderboardController> _logger;
+#endif
+[ApiController]
+[Route("api/v1/leaderboard")]
+public class LeaderboardController : ControllerBase
+{
+    private readonly ILogger<LeaderboardController> logger;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="LeaderboardController"/> class.
-		/// </summary>
-		/// <param name="logger"> logger.</param>
-		public LeaderboardController(ILogger<LeaderboardController> logger)
-		{
-			_logger = logger;
-		}
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LeaderboardController"/> class.
+    /// </summary>
+    /// <param name="logger"> logger.</param>
+    public LeaderboardController(ILogger<LeaderboardController> logger)
+    {
+        this.logger = logger;
+    }
 
-		/// <summary>
-		/// Gets the current leaderboard.
-		/// </summary>
-		/// <returns>The leaderboard data and generation timestamp.</returns>
-		[HttpGet]
-		public IActionResult GetLeaderboard()
-		{
-			throw new NotImplementedException("not yet been implemented.");
-		}
-	}
+    /// <summary>
+    /// Gets the current leaderboard.
+    /// </summary>
+    /// <returns>The leaderboard data and generation timestamp.</returns>
+    [HttpGet]
+    public IActionResult GetLeaderboard()
+    {
+        throw new NotImplementedException("not yet been implemented.");
+    }
 }

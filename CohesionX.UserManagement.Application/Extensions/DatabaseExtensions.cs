@@ -1,4 +1,8 @@
-﻿using CohesionX.UserManagement.Database;
+﻿// <copyright file="DatabaseExtensions.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using CohesionX.UserManagement.Database;
 using CohesionX.UserManagement.Database.Abstractions.Contants;
 using CohesionX.UserManagement.Database.Abstractions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -12,22 +16,22 @@ namespace CohesionX.UserManagement.Application.Extensions;
 /// </summary>
 public static class DatabaseExtensions
 {
-	/// <summary>
-	/// Registers the application database context with the dependency injection container.
-	/// </summary>
-	/// <param name="services"> service to extend. </param>
-	/// <param name="config"> base cofig. </param>
-	/// <returns> returns augmented collection. </returns>
-	public static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration config)
-	{
-		var dbOptions = config.GetSection("DB_CONNECTION_STRING").Get<DbConnectionOptions>()!;
-		services.AddDbContext<AppDbContext>(options =>
-		{
-			options.UseNpgsql(dbOptions.DbSecrets, npgsql =>
-			{
-				npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DbSchema.Default);
-			});
-		});
-		return services;
-	}
+    /// <summary>
+    /// Registers the application database context with the dependency injection container.
+    /// </summary>
+    /// <param name="services"> service to extend. </param>
+    /// <param name="config"> base cofig. </param>
+    /// <returns> returns augmented collection. </returns>
+    public static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration config)
+    {
+        var dbOptions = config.GetSection("DB_CONNECTION_STRING").Get<DbConnectionOptions>() !;
+        services.AddDbContext<AppDbContext>(options =>
+        {
+            options.UseNpgsql(dbOptions.DbSecrets, npgsql =>
+            {
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DbSchema.Default);
+            });
+        });
+        return services;
+    }
 }
