@@ -1,6 +1,6 @@
-﻿using CohesionX.UserManagement.Abstractions.DTOs.Options;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using SharedLibrary.Common.Options;
 
 namespace CohesionX.UserManagement.Extensions;
 

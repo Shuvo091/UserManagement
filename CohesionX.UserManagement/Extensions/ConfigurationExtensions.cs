@@ -1,5 +1,7 @@
 ﻿using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Database.Abstractions.Options;
+using SharedLibrary.Cache.Models;
+using SharedLibrary.Common.Options;
 
 namespace CohesionX.UserManagement.Extensions;
 
@@ -17,7 +19,7 @@ public static class ConfigurationExtensions
     public static IServiceCollection ConfigureOptions(this IServiceCollection services, IConfiguration config)
     {
         services.Configure<DbConnectionOptions>(config.GetSection("DB_CONNECTION_STRING"));
-        services.Configure<RedisOptions>(config.GetSection("Redis"));
+        services.Configure<RedisConfiguration>(config.GetSection("Redis"));
         services.Configure<IdentityServerOptions>(config.GetSection("IdentityServer"));
         services.Configure<WorkflowEngineOptions>(config.GetSection("WorkflowEngine"));
         services.Configure<DbSeederOptions>(config.GetSection("DbSeeder"));

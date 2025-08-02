@@ -36,6 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CohesionX.UserManagement.Abstractions\CohesionX.UserManagement.Abstractions.csproj" />
     <ProjectReference Include="..\CohesionX.UserManagement.Application\CohesionX.UserManagement.Application.csproj" />
   </ItemGroup>
 
