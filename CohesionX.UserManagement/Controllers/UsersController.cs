@@ -425,11 +425,12 @@ namespace CohesionX.UserManagement.Controllers;
         /// <summary>
         /// Checks the professional status for a batch of users.
         /// </summary>
-        /// <param name="batchRequest">The batch request object.</param>
+        /// <param name="userIds">The batch request object.</param>
         /// <returns>Batch check result summary.</returns>
         [HttpPost("check-professional-status")]
-        public IActionResult BatchCheckProfessionalStatus([FromBody] object batchRequest)
+        public async Task<IActionResult> BatchCheckProfessionalStatus([FromBody] List<Guid> userIds)
         {
-            throw new NotImplementedException("not yet been implemented.");
+            var resp = await this.userService.GetBatchProfessionalStatus(userIds);
+            return this.Ok(resp);
         }
     }

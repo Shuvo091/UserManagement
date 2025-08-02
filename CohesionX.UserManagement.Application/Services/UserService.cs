@@ -509,6 +509,39 @@ public class UserService : IUserService
     }
 
     /// <summary>
+    /// Setss the professional status for multiple users.
+    /// </summary>
+    /// <param name="userIds">The users' unique identifier.</param>
+    /// <returns>The professional status response.</returns>
+    public async Task<ProfessionalStatusBatchResponse> GetBatchProfessionalStatus(List<Guid> userIds)
+    {
+        var users = await this.repo.GetFilteredListAsync(u => userIds.Contains(u.Id));
+        if (users == null || users.Count == 0)
+        {
+            throw new KeyNotFoundException($"No user not found.");
+        }
+
+        var response = new ProfessionalStatusBatchResponse();
+
+        foreach (var user in users)
+        {
+            response.ProfessionalStatuses[user.Id.ToString()] = new ProfessionalStatus
+            {
+                IsProfessional = user.IsProfessional,
+                BypassQAComparison = user.IsProfessional,
+            };
+        }
+
+        response.Summary = new ProfessionalSummary
+        {
+            TotalChecked = users.Count,
+            Professionals = users.Count(u => u.IsProfessional),
+            StandardTranscribers = users.Count(u => !u.IsProfessional),
+        };
+        return response;
+    }
+
+    /// <summary>
     /// Gets the missing criteria for professional eligibility.
     /// </summary>
     /// <param name="elo">The user's current Elo rating.</param>
