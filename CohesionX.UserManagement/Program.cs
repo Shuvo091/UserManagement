@@ -6,8 +6,8 @@ using CohesionX.UserManagement.Database.Services;
 using CohesionX.UserManagement.Extensions;
 using CohesionX.UserManagement.Middleware;
 using Prometheus;
-using Serilog;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
+using SharedLibrary.Common.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
