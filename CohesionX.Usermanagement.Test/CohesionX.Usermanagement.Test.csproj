@@ -14,7 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CohesionX.SharedLibrary" Version="7.31.25.5" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="xunit" Version="2.4.2" />
