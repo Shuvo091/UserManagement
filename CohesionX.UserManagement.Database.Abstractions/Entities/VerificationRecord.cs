@@ -16,6 +16,11 @@ public class VerificationRecord : BaseEntity
     public Guid UserId { get; set; }
 
     /// <summary>
+    /// Gets or sets the ID of the admin who verified the record (nullable).
+    /// </summary>
+    public Guid? VerifiedBy { get; set; }
+
+    /// <summary>
     /// Gets or sets the type of verification performed
     /// (e.g., "ID", "Photo", "Phone", "Email", "Professional").
     /// </summary>
@@ -54,4 +59,9 @@ public class VerificationRecord : BaseEntity
     /// Gets or sets navigation property to the user associated with this verification.
     /// </summary>
     public User User { get; set; } = default!;
+
+    /// <summary>
+    /// Gets or sets the navigation property to the user who verified this record (optional).
+    /// </summary>
+    public User? Verifier { get; set; }
 }
