@@ -401,7 +401,7 @@ public class UserService : IUserService
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
         var authorizedBy = await this.repo.GetUserByIdAsync(validationReq.AuthorizedBy);
-        if (user == null)
+        if (user == null || user.Statistics == null)
         {
             throw new KeyNotFoundException("User not found");
         }
@@ -416,6 +416,13 @@ public class UserService : IUserService
             throw new KeyNotFoundException("Authorizer must be an admin");
         }
 
+        var missingCriteria = this.GetMissingCriteria(user.Statistics.CurrentElo, user.Statistics.TotalJobs);
+        var eligible = missingCriteria.Count == 0;
+        if (!eligible)
+        {
+            throw new InvalidOperationException("Minimum criteria not met.");
+        }
+
         var previousRole = user.Role;
 
         user.IsProfessional = validationReq.IsProfessional;
@@ -426,6 +433,7 @@ public class UserService : IUserService
             VerificationType = VerificationType.IdDocument.ToDisplayName(),
             Status = VerificationStatusType.Approved.ToDisplayName(),
             VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
+            VerifiedBy = authorizedBy.Id,
             VerifiedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
         });
@@ -450,9 +458,87 @@ public class UserService : IUserService
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
     /// <returns>The professional status response.</returns>
-    public GetProfessionalStatusResponse GetProfessionalStatus(Guid userId)
+    public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
     {
-        throw new NotImplementedException();
+        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        if (user == null || user.Statistics == null)
+        {
+            throw new KeyNotFoundException($"User with ID {userId} not found.");
+        }
+
+        var verificationRecord = this.GetLastProfessionalVerificationRecord(user);
+        if (verificationRecord == null)
+        {
+            throw new KeyNotFoundException($"User with ID {userId}'s verification record not found.");
+        }
+
+        var response = new GetProfessionalStatusResponse
+        {
+            UserId = user.Id,
+            CurrentElo = user.Statistics!.CurrentElo,
+        };
+
+        if (user.IsProfessional && verificationRecord != null)
+        {
+            response.IsProfessional = true;
+            response.ProfessionalDetails = new ProfessionalDetailsDto
+            {
+                Designation = user.Role,
+                Level = this.GetSkillLevelFromElo(user.Statistics.CurrentElo),
+                BypassQAComparison = user.IsProfessional,
+                DesignatedAt = verificationRecord.VerifiedAt!.Value,
+                DesignatedBy = verificationRecord.VerifiedBy!.Value.ToString(),
+            };
+            response.TotalJobsCompleted = user.Statistics.TotalJobs;
+        }
+        else
+        {
+            response.IsProfessional = false;
+            response.CurrentRole = user.Role;
+            response.EligibleForProfessional = user.Statistics.CurrentElo >= this.minEloRequiredForPro && user.Statistics.TotalJobs >= this.minJobsRequiredForPro;
+            response.EligibilityCriteria = new EligibilityCriteriaDto
+            {
+                MinEloRequired = this.minEloRequiredForPro,
+                MinJobsRequired = this.minJobsRequiredForPro,
+                UserElo = user.Statistics.CurrentElo,
+                UserJobs = user.Statistics.TotalJobs,
+            };
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// Setss the professional status for multiple users.
+    /// </summary>
+    /// <param name="userIds">The users' unique identifier.</param>
+    /// <returns>The professional status response.</returns>
+    public async Task<ProfessionalStatusBatchResponse> GetBatchProfessionalStatus(List<Guid> userIds)
+    {
+        var users = await this.repo.GetFilteredListAsync(u => userIds.Contains(u.Id));
+        if (users == null || users.Count == 0)
+        {
+            throw new KeyNotFoundException($"No user not found.");
+        }
+
+        var response = new ProfessionalStatusBatchResponse();
+
+        foreach (var user in users)
+        {
+            response.ProfessionalStatuses[user.Id.ToString()] = new ProfessionalStatus
+            {
+                IsProfessional = user.IsProfessional,
+                BypassQAComparison = user.IsProfessional,
+            };
+        }
+
+        response.Summary = new ProfessionalSummary
+        {
+            TotalChecked = users.Count,
+            Professionals = users.Count(u => u.IsProfessional),
+            StandardTranscribers = users.Count(u => !u.IsProfessional),
+        };
+        return response;
     }
 
     /// <summary>
@@ -475,5 +561,47 @@ public class UserService : IUserService
         }
 
         return missingCriteria;
+    }
+
+    /// <summary>
+    /// Gets skill level from elo.
+    /// </summary>
+    /// <param name="elo"> current elo. </param>
+    /// <returns> level. </returns>
+    private string GetSkillLevelFromElo(int elo)
+    {
+        if (elo >= 1600)
+        {
+            return "expert";
+        }
+
+        if (elo >= 1400)
+        {
+            return "advanced";
+        }
+
+        if (elo >= 1200)
+        {
+            return "intermediate";
+        }
+
+        return "novice";
+    }
+
+    /// <summary>
+    /// Get the last verification record where transcriber was set to professional.
+    /// </summary>
+    /// <param name="user"> user in question. </param>
+    /// <returns> Verification record. </returns>
+    private VerificationRecord? GetLastProfessionalVerificationRecord(User user)
+    {
+        return user.VerificationRecords
+            .Where(v =>
+                v.VerificationType == VerificationType.IdDocument.ToDisplayName() &&
+                v.Status == VerificationStatusType.Approved.ToDisplayName() &&
+                user.IsProfessional &&
+                user.Role == UserRoleType.Professional.ToDisplayName())
+            .OrderByDescending(v => v.VerifiedAt)
+            .FirstOrDefault();
     }
 }

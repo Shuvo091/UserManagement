@@ -30,6 +30,7 @@ public class LeaderboardController : ControllerBase
     [HttpGet]
     public IActionResult GetLeaderboard()
     {
+        // No specification found in the requirement doc
         throw new NotImplementedException("not yet been implemented.");
     }
 }

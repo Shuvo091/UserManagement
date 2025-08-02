@@ -47,7 +47,14 @@ public interface IUserService
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
     /// <returns>The professional status response.</returns>
-    GetProfessionalStatusResponse GetProfessionalStatus(Guid userId);
+    Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId);
+
+    /// <summary>
+    /// Gets the professional status for multiple users.
+    /// </summary>
+    /// <param name="userIds">The users' unique identifier.</param>
+    /// <returns>The professional status response for all.</returns>
+    Task<ProfessionalStatusBatchResponse> GetBatchProfessionalStatus(List<Guid> userIds);
 
     /// <summary>
     /// Gets the user entity by user ID.

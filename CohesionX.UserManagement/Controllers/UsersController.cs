@@ -1,6 +1,7 @@
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
@@ -11,9 +12,9 @@ namespace CohesionX.UserManagement.Controllers;
     /// <summary>
     /// API controller for user management operations such as registration, verification, availability, and job claiming.
     /// </summary>
-#if !DEBUG || !SKIP_AUTH
-[Authorize]
-#endif
+    #if !DEBUG || !SKIP_AUTH
+    [Authorize]
+    #endif
     [ApiController]
     [Route("api/v1/users")]
     public class UsersController : ControllerBase
@@ -415,19 +416,21 @@ namespace CohesionX.UserManagement.Controllers;
         /// <param name="userId">The user's unique identifier.</param>
         /// <returns>Professional status response or error details.</returns>
         [HttpGet("{userId}/professional-status")]
-        public IActionResult GetProfessionalStatus([FromRoute] Guid userId)
+        public async Task<IActionResult> GetProfessionalStatus([FromRoute] Guid userId)
         {
-            throw new NotImplementedException("not yet been implemented.");
+            var resp = await this.userService.GetProfessionalStatus(userId);
+            return this.Ok(resp);
         }
 
         /// <summary>
         /// Checks the professional status for a batch of users.
         /// </summary>
-        /// <param name="batchRequest">The batch request object.</param>
+        /// <param name="userIds">The batch request object.</param>
         /// <returns>Batch check result summary.</returns>
         [HttpPost("check-professional-status")]
-        public IActionResult BatchCheckProfessionalStatus([FromBody] object batchRequest)
+        public async Task<IActionResult> BatchCheckProfessionalStatus([FromBody] List<Guid> userIds)
         {
-            throw new NotImplementedException("not yet been implemented.");
+            var resp = await this.userService.GetBatchProfessionalStatus(userIds);
+            return this.Ok(resp);
         }
     }
