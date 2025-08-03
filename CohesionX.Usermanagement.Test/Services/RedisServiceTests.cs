@@ -93,8 +93,7 @@ public class RedisServiceTests
                   key = k;
                   value = v;
                   ttl = t;
-              })
-              .ReturnsAsync(true);
+              });
 
         await this._service.SetAvailabilityAsync(userId, dto);
         Assert.Contains(userId.ToString(), key);
@@ -127,7 +126,7 @@ public class RedisServiceTests
     {
         var job = "job2";
         this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>())).ReturnsAsync((string?)null);
-        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._jobClaimLockTtl)).ReturnsAsync(true);
+        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._jobClaimLockTtl));
 
         var userId = Guid.NewGuid();
         var result = await this._service.TryClaimJobAsync(job, userId);
@@ -147,7 +146,7 @@ public class RedisServiceTests
     public async Task ReleaseJobClaimAsync_CallsRemove()
     {
         var job = "job3";
-        this._cache.Setup(c => c.RemoveAsync(It.IsAny<string>())).ReturnsAsync(true);
+        this._cache.Setup(c => c.RemoveAsync(It.IsAny<string>()));
         await this._service.ReleaseJobClaimAsync(job);
         this._cache.Verify(c => c.RemoveAsync(It.Is<string>(k => k.Contains(job))), Times.Once);
     }
@@ -192,8 +191,7 @@ public class RedisServiceTests
               .ReturnsAsync(JsonSerializer.Serialize(new List<string> { "a" }));
         string? setJson = null;
         this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userClaimsTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v)
-              .ReturnsAsync(true);
+              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v);
         await this._service.AddUserClaimAsync(userId, "b");
         var result = JsonSerializer.Deserialize<List<string>>(setJson!);
         Assert.Contains("b", result!);
@@ -211,8 +209,7 @@ public class RedisServiceTests
               .ReturnsAsync(JsonSerializer.Serialize(new List<string> { "x", "y" }));
         string? setJson = null;
         this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userClaimsTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v)
-              .ReturnsAsync(true);
+              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v);
         await this._service.RemoveUserClaimAsync(userId, "x");
         var result = JsonSerializer.Deserialize<List<string>>(setJson!);
         Assert.DoesNotContain("x", result!);
@@ -257,8 +254,7 @@ public class RedisServiceTests
         var dto = new UserEloRedisDto { CurrentElo = 1400 };
         string? setValue = null;
         this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userEloTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setValue = v)
-              .ReturnsAsync(true);
+              .Callback<string, string, TimeSpan?>((_, v, __) => setValue = v);
 
         await this._service.SetUserEloAsync(userId, dto);
 

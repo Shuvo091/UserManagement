@@ -1,4 +1,5 @@
 using CohesionX.UserManagement.Abstractions.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
@@ -7,10 +8,7 @@ namespace CohesionX.UserManagement.Controllers;
 /// <summary>
 /// API controller for Elo rating updates and three-way resolution operations.
 /// </summary>
-
-#if !DEBUG || !SKIP_AUTH
-	[Authorize(Roles = "Admin")]
-#endif
+[Authorize]
 [ApiController]
 [Route("api/v1/elo-update")]
 public class EloUpdateController : ControllerBase

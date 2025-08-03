@@ -23,6 +23,7 @@ public static class ConfigurationExtensions
         services.Configure<IdentityServerOptions>(config.GetSection("IdentityServer"));
         services.Configure<WorkflowEngineOptions>(config.GetSection("WorkflowEngine"));
         services.Configure<DbSeederOptions>(config.GetSection("DbSeeder"));
+        services.Configure<JwtOptions>(config.GetSection("Jwt"));
         services.Configure<AppConstantsOptions>(options =>
         {
             options.EnableGrpc = config.GetValue<bool>("ENABLE_GRPC");

@@ -116,4 +116,11 @@ public interface IUserService
     /// <param name="validationReq">The request containing professional status details.</param>
     /// <returns>The response containing updated professional status.</returns>
     Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq);
+
+    /// <summary>
+    /// Authenticates a user login request.
+    /// </summary>
+    /// <param name="request"> username and password for logging in. </param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
+    Task<UserLoginResponse?> AuthenticateAsync(UserLoginRequest request);
 }

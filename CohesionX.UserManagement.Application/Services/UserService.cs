@@ -2,6 +2,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using AutoMapper;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
@@ -10,7 +13,10 @@ using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using SharedLibrary.AppEnums;
+using SharedLibrary.Common.Options;
+using SharedLibrary.Common.Security;
 using SharedLibrary.RequestResponseModels.UserManagement;
 
 namespace CohesionX.UserManagement.Application.Services;
@@ -28,6 +34,7 @@ public class UserService : IUserService
     private readonly int minEloRequiredForPro;
     private readonly int minJobsRequiredForPro;
     private readonly ILogger<UserService> logger;
+    private readonly IOptions<JwtOptions> jwtOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UserService"/> class.
@@ -39,6 +46,7 @@ public class UserService : IUserService
     /// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
     /// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
     /// <param name="logger"> logger. </param>
+    /// <param name="jwtOptions"> the Jwt options from config. </param>
     public UserService(
         IUserRepository repo,
         IAuditLogRepository auditLogRepo,
@@ -46,7 +54,8 @@ public class UserService : IUserService
         IMapper mapper,
         IOptions<AppConstantsOptions> appContantOptions,
         IEloService eloService,
-        ILogger<UserService> logger)
+        ILogger<UserService> logger,
+        IOptions<JwtOptions> jwtOptions)
     {
         this.repo = repo;
         this.auditLogRepo = auditLogRepo;
@@ -62,6 +71,7 @@ public class UserService : IUserService
         var initMinJobsPro = appContantOptions.Value.MinJobsRequiredForPro;
         this.minJobsRequiredForPro = initMinJobsPro;
         this.logger = logger;
+        this.jwtOptions = jwtOptions;
     }
 
     /// <summary>
@@ -102,7 +112,7 @@ public class UserService : IUserService
             Role = UserRoleType.Transcriber.ToDisplayName(),
             IsProfessional = false,
         };
-        user.PasswordHash = dto.Password; // TODO: Hash the password securely
+        user.PasswordHash = PasswordHasher.Hash(dto.Password);
 
         // Add dialect preferences
         if (dto.DialectPreferences != null && dto.DialectPreferences.Any())
@@ -539,6 +549,49 @@ public class UserService : IUserService
             StandardTranscribers = users.Count(u => !u.IsProfessional),
         };
         return response;
+    }
+
+    /// <summary>
+    /// Authenticates a user login request.
+    /// </summary>
+    /// <param name="request"> username and password for logging in. </param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
+    public async Task<UserLoginResponse?> AuthenticateAsync(UserLoginRequest request)
+    {
+        var user = await this.repo.GetUserByEmailAsync(request.Username);
+
+        if (user == null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            return null;
+        }
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.UTF8.GetBytes(this.jwtOptions.Value.Secret);
+
+        var claims = new List<Claim>
+        {
+            new (ClaimTypes.NameIdentifier, user!.Id.ToString()),
+            new (ClaimTypes.Email, user.Email),
+            new (ClaimTypes.Role, user.Role.ToString()),
+        };
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(this.jwtOptions.Value.ExpiryMinutes),
+            Issuer = this.jwtOptions.Value.Issuer,
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha256Signature),
+        };
+
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+
+        return new UserLoginResponse
+        {
+            AccessToken = tokenHandler.WriteToken(token),
+            ExpiresAt = tokenDescriptor.Expires!.Value,
+        };
     }
 
     /// <summary>

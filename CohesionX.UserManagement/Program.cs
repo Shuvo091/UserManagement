@@ -17,14 +17,14 @@ var host = builder.Host;
 // 1. Controllers & Swagger
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGenWithOAuth(configuration);
+services.AddSwaggerGenWithJwt();
 
 // 2. Configuration binding
 services.ConfigureOptions(configuration);
 
 // 4. Custom modules
 services.AddRedis(configuration);
-services.AddRedisCache(configuration);
+services.AddRedisCache();
 services.RegisterUserModule();
 services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>();
 services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -33,7 +33,7 @@ services.AddHostedService<MigrationAndSeedingService>();
 // 5. DB + Auth + Policies
 services.AddAppDbContext(configuration);
 services.AddJwtAuthentication(configuration);
-services.AddAuthorizationPolicy(configuration);
+services.AddAuthorization();
 
 // 6. Logger
 host.AddSerilogLogging();
@@ -48,7 +48,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUIWithOAuth(configuration);
+    app.UseSwaggerUIWithJwt();
 }
 
 // Collect default HTTP metrics and Expose /metrics endpoint for Prometheus
