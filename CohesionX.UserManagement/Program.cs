@@ -4,9 +4,9 @@ using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
 using CohesionX.UserManagement.Database.Services;
 using CohesionX.UserManagement.Extensions;
-using CohesionX.UserManagement.Middleware;
 using Prometheus;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
+using SharedLibrary.Common.ExceptionMiddlewares;
 using SharedLibrary.Common.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,7 +39,9 @@ services.AddAuthorization();
 host.AddSerilogLogging();
 
 // Health
-services.AddHealthChecks();
+services.AddCustomHealthChecks(configuration);
+
+// OpenTelemetry
 services.RegisterOpenTelemetry(configuration);
 
 var app = builder.Build();
