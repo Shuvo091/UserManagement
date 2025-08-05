@@ -15,8 +15,10 @@ public interface IVerificationRequirementRepository : IRepository<UserVerificati
     /// <summary>
     /// Retrieves the current global user verification requirement configuration.
     /// </summary>
+    /// <param name="userId"> Id of user to get record. </param>
+    /// <param name="trackChanges"> Whether or not to track changes. Defaults to false. </param>
     /// <returns>
     /// A task representing the asynchronous operation, containing the <see cref="UserVerificationRequirement"/> if found; otherwise, <c>null</c>.
     /// </returns>
-    Task<UserVerificationRequirement?> GetVerificationRequirement();
+    Task<UserVerificationRequirement?> GetVerificationRequirement(Guid userId, bool trackChanges = false);
 }

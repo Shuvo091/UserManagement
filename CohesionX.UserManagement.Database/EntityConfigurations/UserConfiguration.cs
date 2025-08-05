@@ -32,6 +32,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
                .WithOne(s => s.User)
                .HasForeignKey<UserStatistics>(s => s.UserId);
 
+        builder.HasOne(u => u.UserVerificationRequirement)
+               .WithOne(s => s.User)
+               .HasForeignKey<UserVerificationRequirement>(s => s.UserId);
+
         builder.HasMany(u => u.EloHistories)
                .WithOne(e => e.User)
                .HasForeignKey(e => e.UserId);

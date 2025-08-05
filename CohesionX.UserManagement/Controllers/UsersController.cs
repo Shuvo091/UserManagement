@@ -116,7 +116,7 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var requirements = await this.verificationRequirementService.GetVerificationRequirement();
+        var requirements = await this.verificationRequirementService.GetEffectiveValidationOptionsAsync(userId);
         if (requirements is null)
         {
             this.logger.LogWarning("Rejecting user verification: Verification requirements not configured.");
@@ -134,7 +134,7 @@ public class UsersController : ControllerBase
         if (requirements.RequireIdDocument &&
             verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
         {
-            this.logger.LogWarning($"Rejecting user verification: Verification type must be 'IdDocument'. Provided value: {verificationRequest.VerificationType}.");
+            this.logger.LogWarning($"Rejecting user verification: Verification type must be 'id_document'. Provided value: {verificationRequest.VerificationType}.");
             return this.BadRequest(new { error = "Verification type must be 'IdDocument'." });
         }
 

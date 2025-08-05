@@ -89,6 +89,11 @@ public class User : BaseEntity
     public UserStatistics? Statistics { get; set; }
 
     /// <summary>
+    /// Gets or sets the statistical metadata for the user (e.g., Elo rating).
+    /// </summary>
+    public UserVerificationRequirement? UserVerificationRequirement { get; set; }
+
+    /// <summary>
     /// Gets or sets the historical record of Elo rating changes for the user.
     /// </summary>
     public ICollection<EloHistory> EloHistories { get; set; } = [];

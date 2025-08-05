@@ -2,7 +2,6 @@ using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Application.Extensions;
 using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
-using CohesionX.UserManagement.Database.Services;
 using CohesionX.UserManagement.Extensions;
 using Prometheus;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
@@ -28,7 +27,6 @@ services.AddRedisCache();
 services.RegisterUserModule();
 services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>();
 services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-services.AddHostedService<MigrationAndSeedingService>();
 
 // 5. DB + Auth + Policies
 services.AddAppDbContext(configuration);

@@ -29,11 +29,18 @@ public class VerificationRequirementRepository : Repository<UserVerificationRequ
     /// <summary>
     /// Retrieves the first (and presumably global) user verification requirement configuration asynchronously.
     /// </summary>
+    /// <param name="userId"> Id of user to get record. </param>
+    /// <param name="trackChanges"> Whether or not to track changes. </param>
     /// <returns>
     /// A task representing the asynchronous operation, containing the <see cref="UserVerificationRequirement"/> if found; otherwise, <c>null</c>.
     /// </returns>
-    public async Task<UserVerificationRequirement?> GetVerificationRequirement()
+    public async Task<UserVerificationRequirement?> GetVerificationRequirement(Guid userId, bool trackChanges = false)
     {
-        return await this.context.UserVerificationRequirements.FirstOrDefaultAsync();
+        if (trackChanges)
+        {
+            return await this.context.UserVerificationRequirements.FirstOrDefaultAsync(c => c.UserId == userId);
+        }
+
+        return await this.context.UserVerificationRequirements.AsNoTracking().FirstOrDefaultAsync(c => c.UserId == userId);
     }
 }

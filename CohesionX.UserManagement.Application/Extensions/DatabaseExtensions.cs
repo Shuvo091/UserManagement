@@ -4,10 +4,10 @@
 
 using CohesionX.UserManagement.Database;
 using CohesionX.UserManagement.Database.Abstractions.Contants;
-using CohesionX.UserManagement.Database.Abstractions.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SharedLibrary.Common.Options;
 
 namespace CohesionX.UserManagement.Application.Extensions;
 
@@ -24,10 +24,10 @@ public static class DatabaseExtensions
     /// <returns> returns augmented collection. </returns>
     public static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration config)
     {
-        var dbOptions = config.GetSection("DB_CONNECTION_STRING").Get<DbConnectionOptions>() !;
+        var dbOptions = config.GetSection(nameof(DatabasesOptions)).Get<DatabasesOptions>() !;
         services.AddDbContext<AppDbContext>(options =>
         {
-            options.UseNpgsql(dbOptions.DbSecrets, npgsql =>
+            options.UseNpgsql(dbOptions.PostgreSQLConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DbSchema.Default);
             });

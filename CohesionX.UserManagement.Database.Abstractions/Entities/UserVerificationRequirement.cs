@@ -13,6 +13,11 @@ namespace CohesionX.UserManagement.Database.Abstractions.Entities;
 public class UserVerificationRequirement : BaseEntity
 {
     /// <summary>
+    /// Gets or sets the unique identifier of the user associated with this dialect.
+    /// </summary>
+    public Guid UserId { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether a government-issued ID document is required.
     /// </summary>
     public bool RequireIdDocument { get; set; }
@@ -61,4 +66,9 @@ public class UserVerificationRequirement : BaseEntity
             : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(this.ValidationRulesJson) !;
         set => this.ValidationRulesJson = System.Text.Json.JsonSerializer.Serialize(value);
     }
+
+    /// <summary>
+    /// Gets or sets navigation property to the user who speaks this dialect.
+    /// </summary>
+    public User User { get; set; } = default!;
 }
