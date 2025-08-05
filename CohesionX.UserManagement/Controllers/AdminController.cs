@@ -1,6 +1,7 @@
 using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SharedLibrary.AppEnums;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 
 namespace CohesionX.UserManagement.Controllers;
@@ -8,7 +9,7 @@ namespace CohesionX.UserManagement.Controllers;
 /// <summary>
 /// API controller for administrative operations such as setting professional status and updating configuration.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = nameof(UserRoleType.Admin))]
 [ApiController]
 [Route("api/v1/admin")]
 public class AdminController : ControllerBase
