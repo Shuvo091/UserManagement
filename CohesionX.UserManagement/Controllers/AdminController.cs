@@ -1,7 +1,7 @@
 using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.Requests;
 
 namespace CohesionX.UserManagement.Controllers;
 

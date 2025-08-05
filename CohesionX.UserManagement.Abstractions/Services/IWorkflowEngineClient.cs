@@ -2,7 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Abstractions.Services;
 

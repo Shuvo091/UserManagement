@@ -6,10 +6,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
-using CohesionX.UserManagement.Database.Abstractions.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Application.Services;
 

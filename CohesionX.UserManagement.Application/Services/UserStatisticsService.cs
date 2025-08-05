@@ -4,7 +4,7 @@
 
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.Requests;
 
 namespace CohesionX.UserManagement.Application.Services;
 

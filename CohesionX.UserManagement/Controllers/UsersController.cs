@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.RedisDtos;
+using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Controllers;
 

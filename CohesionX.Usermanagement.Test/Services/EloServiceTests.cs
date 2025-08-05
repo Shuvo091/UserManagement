@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using AutoMapper;
+using CohesionX.UserManagement.Abstractions.DTOs;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Application.Services;
@@ -9,7 +10,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.AppEnums;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.RedisDtos;
+using SharedLibrary.Contracts.Usermanagement.Requests;
 
 namespace CohesionX.UserManagement.Application.Tests;
 

@@ -5,7 +5,8 @@
 using AutoMapper;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using SharedLibrary.AppEnums;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Application.Profiles;
 

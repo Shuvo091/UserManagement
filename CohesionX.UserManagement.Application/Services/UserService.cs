@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using AutoMapper;
+using CohesionX.UserManagement.Abstractions.DTOs;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
@@ -17,7 +18,9 @@ using Microsoft.IdentityModel.Tokens;
 using SharedLibrary.AppEnums;
 using SharedLibrary.Common.Options;
 using SharedLibrary.Common.Security;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.RedisDtos;
+using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Application.Services;
 

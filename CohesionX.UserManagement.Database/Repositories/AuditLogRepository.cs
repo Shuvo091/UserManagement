@@ -5,7 +5,7 @@
 using System.Text.Json;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Repositories;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 
 namespace CohesionX.UserManagement.Database.Repositories;
 

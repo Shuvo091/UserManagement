@@ -8,7 +8,7 @@ using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedLibrary.Cache.Services.Interfaces;
-using SharedLibrary.RequestResponseModels.UserManagement;
+using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 
 namespace CohesionX.UserManagement.Application.Services;
 
