@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
 using SharedLibrary.RequestResponseModels.UserManagement;
+using StackExchange.Redis;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -91,12 +92,14 @@ public class EloService : IEloService
 
         if (userStatisticsDb == null || userStatisticsDb.Count != userIds.Count)
         {
-            throw new Exception("Missing UserStatistics for some transcribers.");
+            this.logger.LogWarning($"Missing UserStatistics for some transcribers.");
+            throw new ArgumentException("Missing UserStatistics for some transcribers.");
         }
 
         if (request.RecommendedEloChanges.Count > 2)
         {
-            throw new Exception("Unexpected number of elo change request found");
+            this.logger.LogWarning($"Missing UserStatistics for some transcribers: Found {request.RecommendedEloChanges.Count}. It should be 2.");
+            throw new ArgumentException("Unexpected number of elo change request found");
         }
 
         var eloHistoryRecords = new List<EloHistory>();
@@ -106,7 +109,7 @@ public class EloService : IEloService
         {
             var userStats = userStatisticsDb
                 .FirstOrDefault(us => us.UserId == eloChange.TranscriberId)
-                ?? throw new Exception($"User statistics not found for user {eloChange.TranscriberId}");
+                ?? throw new KeyNotFoundException($"User statistics not found for user {eloChange.TranscriberId}");
 
             //// Validate current elo matches OldElo
             // if (userStats.CurrentElo != eloChange.OldElo)
@@ -196,6 +199,7 @@ public class EloService : IEloService
         var user = await this.userRepo.GetUserByIdAsync(userId, includeRelated: true);
         if (user == null)
         {
+            this.logger.LogWarning($"Getting professional status failed because User with ID {userId} not found.");
             throw new KeyNotFoundException("User not found");
         }
 
@@ -398,6 +402,7 @@ public class EloService : IEloService
         // Validate input count
         if (twuReq.ThreeWayEloChanges == null || twuReq.ThreeWayEloChanges.Count != 3)
         {
+            this.logger.LogWarning($"Exactly 3 Elo changes required for three-way resolution. Found: {twuReq.ThreeWayEloChanges?.Count}");
             throw new ArgumentException("Exactly 3 Elo changes required for three-way resolution.");
         }
 
@@ -413,8 +418,10 @@ public class EloService : IEloService
 
         foreach (var role in requiredRoles)
         {
-            if (roles.Count(r => r == role) != 1)
+            var roleCount = roles.Count(r => r == role);
+            if (roleCount != 1)
             {
+                this.logger.LogWarning($"Role '{role}' must appear exactly once in threeWayEloChanges. Found: {roleCount}");
                 throw new ArgumentException($"Role '{role}' must appear exactly once in threeWayEloChanges.");
             }
         }
@@ -424,7 +431,8 @@ public class EloService : IEloService
 
         if (userStatsDb == null || userStatsDb.Count != userIds.Count)
         {
-            throw new Exception("Missing statistics for one or more transcribers.");
+            this.logger.LogWarning($"Missing statistics for one or more transcribers. Expected: {userIds.Count}, Found: {userStatsDb?.Count}");
+            throw new ArgumentException("Missing statistics for one or more transcribers.");
         }
 
         // Find tiebreaker transcriber change
@@ -440,16 +448,18 @@ public class EloService : IEloService
         {
             if (!EnumDisplayHelper.TryParseDisplayName(change.Role, out ThreeWayTranscriberRoleType roleEnum))
             {
-                throw new Exception($"Invalid user role provided");
+                this.logger.LogWarning($"Invalid user role provided. Provided: {change.Role}");
+                throw new ArgumentException($"Invalid user role provided");
             }
 
             if (!EnumDisplayHelper.TryParseDisplayName(change.Outcome, out GameOutcomeType outcomeEnum))
             {
-                throw new Exception($"Invalid game outcome provided");
+                this.logger.LogWarning($"Invalid game outcome provided. Provided: {change.Outcome}");
+                throw new ArgumentException($"Invalid game outcome provided");
             }
 
             var stats = userStatsDb.FirstOrDefault(u => u.UserId == change.TranscriberId)
-                ?? throw new Exception($"User stats not found for {change.TranscriberId}");
+                ?? throw new KeyNotFoundException($"User stats not found for {change.TranscriberId}");
 
             var eloChangeAdjusted = change.EloChange;
 

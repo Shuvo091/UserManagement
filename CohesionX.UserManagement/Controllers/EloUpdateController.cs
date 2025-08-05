@@ -37,6 +37,7 @@ public class EloUpdateController : ControllerBase
     {
         if (!this.ModelState.IsValid)
         {
+            this.logger.LogWarning($"Rejecting elo update: Request object not valid. ModelState: {this.ModelState}");
             return this.BadRequest(this.ModelState);
         }
 
@@ -54,6 +55,7 @@ public class EloUpdateController : ControllerBase
     {
         if (!this.ModelState.IsValid)
         {
+            this.logger.LogWarning($"Rejecting threeway resolution: Request object not valid. ModelState: {this.ModelState}");
             return this.BadRequest(this.ModelState);
         }
 

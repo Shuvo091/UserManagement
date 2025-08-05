@@ -87,12 +87,14 @@ public class UserService : IUserService
             string.IsNullOrWhiteSpace(dto.Email) ||
             string.IsNullOrWhiteSpace(dto.Password))
         {
+            this.logger.LogWarning($"Registration failed due to missing fields. Payload: {dto}");
             throw new ArgumentException("All required fields must be provided");
         }
 
         // Check if email already exists
         if (await this.repo.EmailExistsAsync(dto.Email))
         {
+            this.logger.LogWarning($"Registration failed due email already existing. Email: {dto.Email}");
             throw new ArgumentException("Email already registered");
         }
 
@@ -169,6 +171,7 @@ public class UserService : IUserService
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
         if (user == null)
         {
+            this.logger.LogWarning($"Profile get failed because user with ID {userId} is not found.");
             throw new KeyNotFoundException("User not found");
         }
 
@@ -243,6 +246,7 @@ public class UserService : IUserService
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
         if (user == null)
         {
+            this.logger.LogWarning($"User with ID {userId} is not found.");
             throw new KeyNotFoundException("User not found");
         }
 
@@ -259,6 +263,7 @@ public class UserService : IUserService
         var user = await this.repo.GetUserByEmailAsync(email);
         if (user == null)
         {
+            this.logger.LogWarning($"User with ID {email} is not found.");
             throw new KeyNotFoundException("User not found");
         }
 
@@ -342,6 +347,7 @@ public class UserService : IUserService
         var user = await this.repo.GetUserByIdAsync(userId);
         if (user == null)
         {
+            this.logger.LogWarning($"Id number get failed because user with ID {userId} is not found.");
             return false;
         }
 
@@ -384,7 +390,8 @@ public class UserService : IUserService
         var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
         if (user == null || claim == null || user.Statistics == null)
         {
-            throw new Exception("User not found");
+            this.logger.LogWarning($"Validating tiebreaker claim failed because user with ID {userId} is not found.");
+            throw new KeyNotFoundException("User not found");
         }
 
         return new ValidateTiebreakerClaimResponse
@@ -413,24 +420,27 @@ public class UserService : IUserService
         var authorizedBy = await this.repo.GetUserByIdAsync(validationReq.AuthorizedBy);
         if (user == null || user.Statistics == null)
         {
+            this.logger.LogWarning($"Setting professional status failed because User with ID {userId} not found.");
             throw new KeyNotFoundException("User not found");
         }
 
         if (authorizedBy == null)
         {
+            this.logger.LogWarning($"Setting professional status failed because Autorizer with ID {validationReq.AuthorizedBy} not found.");
             throw new KeyNotFoundException("Authorizer not found");
         }
 
         if (authorizedBy.Role != UserRoleType.Admin.ToDisplayName())
         {
-            throw new KeyNotFoundException("Authorizer must be an admin");
+            this.logger.LogWarning($"Setting professional failed because authorizer is not admin.");
+            throw new ArgumentException("Authorizer must be an admin");
         }
 
         var missingCriteria = this.GetMissingCriteria(user.Statistics.CurrentElo, user.Statistics.TotalJobs);
         var eligible = missingCriteria.Count == 0;
         if (!eligible)
         {
-            throw new InvalidOperationException("Minimum criteria not met.");
+            throw new ArgumentException("Minimum criteria not met.");
         }
 
         var previousRole = user.Role;
@@ -473,12 +483,14 @@ public class UserService : IUserService
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
         if (user == null || user.Statistics == null)
         {
+            this.logger.LogWarning($"Getting professional status failed because User with ID {userId} not found.");
             throw new KeyNotFoundException($"User with ID {userId} not found.");
         }
 
         var verificationRecord = this.GetLastProfessionalVerificationRecord(user);
         if (verificationRecord == null)
         {
+            this.logger.LogWarning($"Getting professional status failed because User with ID {userId}'s verification record not found.");
             throw new KeyNotFoundException($"User with ID {userId}'s verification record not found.");
         }
 
@@ -528,6 +540,7 @@ public class UserService : IUserService
         var users = await this.repo.GetFilteredListAsync(u => userIds.Contains(u.Id));
         if (users == null || users.Count == 0)
         {
+            this.logger.LogWarning($"Getting batch professional status failed because Users with ID {userIds} not found.");
             throw new KeyNotFoundException($"No user not found.");
         }
 
@@ -562,6 +575,7 @@ public class UserService : IUserService
 
         if (user == null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
         {
+            this.logger.LogWarning($"Authentication failed because of invalid credentials.");
             return null;
         }
 

@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Database.Abstractions.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedLibrary.RequestResponseModels.UserManagement;
@@ -53,6 +54,7 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 
             if (!response.IsSuccessStatusCode)
             {
+                this.logger.LogWarning($"Failed to notify elo update to workflow engine. Response: {response}");
                 return null;
             }
 

@@ -47,6 +47,7 @@ public class RedisService : IRedisService
         var json = await this.cache.GetAsync<string>(this.GetAvailabilityKey(userId));
         if (string.IsNullOrWhiteSpace(json))
         {
+            this.logger.LogInformation($"user {userId} not available in cache.");
             return null;
         }
 
@@ -67,6 +68,7 @@ public class RedisService : IRedisService
         var existing = await this.cache.GetAsync<string>(key);
         if (!string.IsNullOrEmpty(existing))
         {
+            this.logger.LogInformation($"Job {jobId} already claimed.");
             return false;
         }
 
@@ -86,6 +88,7 @@ public class RedisService : IRedisService
         var json = await this.cache.GetAsync<string>(this.GetUserClaimsKey(userId));
         if (string.IsNullOrWhiteSpace(json))
         {
+            this.logger.LogInformation($"user {userId}'s claim not found.");
             return new List<string>();
         }
 
