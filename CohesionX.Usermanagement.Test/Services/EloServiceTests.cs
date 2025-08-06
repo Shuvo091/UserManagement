@@ -121,7 +121,7 @@ public class EloServiceTests
                      .ReturnsAsync(new List<UserStatistics>());
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(async () => await this._service.ApplyEloUpdatesAsync(req));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await this._service.ApplyEloUpdatesAsync(req));
     }
 
     /// <summary>
@@ -137,7 +137,7 @@ public class EloServiceTests
                      .ReturnsAsync(new List<UserStatistics> { new (), new (), new () });
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(async () => await this._service.ApplyEloUpdatesAsync(req));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await this._service.ApplyEloUpdatesAsync(req));
     }
 
     /// <summary>
