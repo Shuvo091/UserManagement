@@ -178,7 +178,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, true);
         if (user == null)
         {
             this.logger.LogWarning($"Profile get failed because user with ID {userId} is not found.");
@@ -249,7 +249,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<User> GetUserAsync(Guid userId)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, true);
         if (user == null)
         {
             this.logger.LogWarning($"User with ID {userId} is not found.");
@@ -282,7 +282,8 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
     {
-        await this.auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
+        await this.auditLogRepo.AddAuditLog(userId, existingAvailability, ipAddress, userAgent);
+        await this.auditLogRepo.SaveChangesAsync();
     }
 
     /// <inheritdoc/>
@@ -351,7 +352,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, true);
         var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
         if (user == null || claim == null || user.Statistics == null)
         {
@@ -376,7 +377,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, true);
         var authorizedBy = await this.repo.GetUserByIdAsync(validationReq.AuthorizedBy);
         if (user == null || user.Statistics == null)
         {
@@ -436,7 +437,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, true);
         if (user == null || user.Statistics == null)
         {
             this.logger.LogWarning($"Getting professional status failed because User with ID {userId} not found.");

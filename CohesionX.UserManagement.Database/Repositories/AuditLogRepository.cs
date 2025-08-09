@@ -12,17 +12,18 @@ namespace CohesionX.UserManagement.Database.Repositories;
 /// <summary>
 /// Repository implementation for managing audit logs related to user activities.
 /// </summary>
-public class AuditLogRepository : IAuditLogRepository
+public class AuditLogRepository : Repository<AuditLog>, IAuditLogRepository
 {
-    private readonly AppDbContext db;
+    private readonly AppDbContext context;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AuditLogRepository"/> class with the specified database context.
     /// </summary>
-    /// <param name="db">The application database context.</param>
-    public AuditLogRepository(AppDbContext db)
+    /// <param name="context">The application database context.</param>
+    public AuditLogRepository(AppDbContext context)
+        : base(context)
     {
-        this.db = db;
+        this.context = context;
     }
 
     /// <summary>
@@ -33,13 +34,13 @@ public class AuditLogRepository : IAuditLogRepository
     /// <param name="ipAddress">The optional IP address from which the update request originated.</param>
     /// <param name="userAgent">The optional user agent string of the client device or browser.</param>
     /// <returns>A task representing the asynchronous save operation.</returns>
-    public async Task UpdateUserAvailabilityAuditLog(
+    public async Task AddAuditLog(
         Guid userId,
         UserAvailabilityRedisDto userAvailabilityRedis,
         string? ipAddress = null,
         string? userAgent = null)
     {
-        this.db.AuditLogs.Add(new AuditLog
+        await this.context.AuditLogs.AddAsync(new AuditLog
         {
             UserId = userId,
             Action = "UpdateAvailability",
@@ -48,7 +49,5 @@ public class AuditLogRepository : IAuditLogRepository
             UserAgent = userAgent ?? string.Empty,
             Timestamp = DateTime.UtcNow,
         });
-
-        await this.db.SaveChangesAsync();
     }
 }

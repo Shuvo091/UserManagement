@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using CohesionX.UserManagement.Database.Abstractions.Entities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 
 namespace CohesionX.UserManagement.Database.Abstractions.Repositories;
@@ -9,7 +10,7 @@ namespace CohesionX.UserManagement.Database.Abstractions.Repositories;
 /// <summary>
 /// Defines data access methods for managing audit logs related to user activities.
 /// </summary>
-public interface IAuditLogRepository
+public interface IAuditLogRepository : IRepository<AuditLog>
 {
     /// <summary>
     /// Updates the audit log entry for a user's availability status,
@@ -20,7 +21,7 @@ public interface IAuditLogRepository
     /// <param name="ipAddress">The optional IP address from which the user action originated.</param>
     /// <param name="userAgent">The optional user agent string of the client device or browser.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    Task UpdateUserAvailabilityAuditLog(
+    Task AddAuditLog(
         Guid userId,
         UserAvailabilityRedisDto userAvailabilityRedis,
         string? ipAddress = null,

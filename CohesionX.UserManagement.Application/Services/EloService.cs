@@ -199,7 +199,7 @@ public class EloService : IEloService
     /// <inheritdoc />
     public async Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId)
     {
-        var user = await this.userRepo.GetUserByIdAsync(userId, includeRelated: true);
+        var user = await this.userRepo.GetUserByIdAsync(userId, false, false, u => u.Statistics!, u => u.EloHistories);
         if (user == null)
         {
             this.logger.LogWarning($"Getting professional status failed because User with ID {userId} not found.");

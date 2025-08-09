@@ -159,7 +159,7 @@ public class EloServiceTests
                 new () { ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1250, NewElo = 1300, OpponentElo = 1200, Outcome = "win", JobId = "j2" },
             },
         };
-        this._userRepo.Setup(x => x.GetUserByIdAsync(userId, true)).ReturnsAsync(user);
+        this._userRepo.Setup(x => x.GetUserByIdAsync(userId, false, true)).ReturnsAsync(user);
 
         // Act
         var resp = await this._service.GetEloHistoryAsync(userId);
@@ -178,7 +178,7 @@ public class EloServiceTests
     public async Task GetEloHistoryAsync_Throws_When_UserNotFound()
     {
         // Arrange
-        this._userRepo.Setup(x => x.GetUserByIdAsync(It.IsAny<Guid>(), true)).ReturnsAsync((User?)null);
+        this._userRepo.Setup(x => x.GetUserByIdAsync(It.IsAny<Guid>(), false, true)).ReturnsAsync((User?)null);
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(async () => await this._service.GetEloHistoryAsync(Guid.NewGuid()));

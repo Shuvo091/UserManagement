@@ -22,7 +22,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasKey(e => e.Id);
 
         builder.HasIndex(e => e.Email).IsUnique();
-        builder.HasIndex(e => e.IdNumber).IsUnique();
+
+        builder.HasIndex(e => e.IdNumber)
+                .IsUnique()
+                .HasFilter("\"IdNumber\" IS NOT NULL AND \"IdNumber\" <> ''");
 
         builder.HasMany(u => u.Dialects)
                .WithOne(d => d.User)

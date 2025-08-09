@@ -21,36 +21,65 @@ public interface IUserRepository : IRepository<User>
     Task<bool> EmailExistsAsync(string email);
 
     /// <summary>
-    /// Retrieves a user by their unique identifier, optionally including related entities.
+    /// Retrieves a user by their unique identifier asynchronously, with optional related data includes.
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
-    /// <param name="includeRelated">If <c>true</c>, related navigation properties will be included.</param>
-    /// <returns>A task representing the asynchronous operation, containing the user if found; otherwise, <c>null</c>.</returns>
-    Task<User?> GetUserByIdAsync(Guid userId, bool includeRelated = false);
+    /// <param name="trackChanges"> If <c>true</c>, tracks changes. </param>
+    /// <param name="includeAll">
+    /// If <c>true</c>, includes all related entities.
+    /// </param>
+    /// <param name="includes">
+    /// Optional list of related navigation properties to include. Ignored if <paramref name="includeAll"/> is <c>true</c>.
+    /// </param>
+    /// <returns>
+    /// A task representing the asynchronous operation, containing the user if found; otherwise, <c>null</c>.
+    /// </returns>
+    Task<User?> GetUserByIdAsync(
+        Guid userId,
+        bool trackChanges = false,
+        bool includeAll = false,
+        params Expression<Func<User, object>>[] includes);
 
     /// <summary>
-    /// Retrieves a user by their email address, optionally including related entities.
+    /// Retrieves a user by their email address asynchronously, with optional related data includes.
     /// </summary>
     /// <param name="email">The email address of the user.</param>
-    /// <param name="includeRelated">If <c>true</c>, related navigation properties will be included.</param>
-    /// <returns>A task representing the asynchronous operation, containing the user if found; otherwise, <c>null</c>.</returns>
-    Task<User?> GetUserByEmailAsync(string email, bool includeRelated = false);
+    /// <param name="trackChanges"> If <c>true</c>, tracks changes. </param>
+    /// <param name="includeAll">
+    /// If <c>true</c>, includes all related entities.
+    /// </param>
+    /// <param name="includes">
+    /// Optional list of related navigation properties to include. Ignored if <paramref name="includeAll"/> is <c>true</c>.
+    /// </param>
+    /// <returns>
+    /// A task representing the asynchronous operation, containing the user if found; otherwise, <c>null</c>.
+    /// </returns>
+    Task<User?> GetUserByEmailAsync(
+        string email,
+        bool trackChanges = false,
+        bool includeAll = false,
+        params Expression<Func<User, object>>[] includes);
 
     /// <summary>
-    /// Retrieves a filtered list of users matching the specified predicate.
+    /// Retrieves a filtered list of users matching the specified predicate asynchronously,
+    /// with optional related data includes.
     /// </summary>
     /// <param name="predicate">The filter expression.</param>
-    /// <returns>A task representing the asynchronous operation, containing the list of matching users.</returns>
-    Task<List<User>> GetFilteredListAsync(Expression<Func<User, bool>> predicate);
-
-    /// <summary>
-    /// Retrieves a filtered and projected list of users matching the specified predicate.
-    /// </summary>
-    /// <typeparam name="T">The type to project the user entities to.</typeparam>
-    /// <param name="predicate">The filter expression.</param>
-    /// <param name="selector">The projection expression.</param>
-    /// <returns>A task representing the asynchronous operation, containing the list of projected results.</returns>
-    Task<List<T>> GetFilteredListProjectedToAsync<T>(Expression<Func<User, bool>> predicate, Expression<Func<User, T>> selector);
+    /// <param name="trackChanges"> If <c>true</c>, tracks changes. </param>
+    /// <param name="includeAll">
+    /// If <c>true</c>, includes all related entities.
+    /// </param>
+    /// <param name="includes">
+    /// Optional list of related navigation properties to include. Ignored if <paramref name="includeAll"/> is <c>true</c>.
+    /// </param>
+    /// <returns>
+    /// A task representing the asynchronous operation, containing the list of filtered users.
+    /// </returns>
+    Task<List<User>> GetFilteredListAsync(
+        Expression<Func<User, bool>> predicate,
+        bool trackChanges = false,
+        bool includeAll = false,
+        params Expression<Func<User, object>>[] includes);
 
     /// <summary>
     /// Retrieves a filtered list of users based on optional dialect, Elo rating range, maximum workload, and limit.
@@ -62,11 +91,4 @@ public interface IUserRepository : IRepository<User>
     /// <param name="limit">Optional maximum number of users to retrieve.</param>
     /// <returns>A task representing the asynchronous operation, containing the filtered list of users.</returns>
     Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
-
-    /// <summary>
-    /// Retrieves all users, optionally including related navigation properties.
-    /// </summary>
-    /// <param name="includeRelated">If <c>true</c>, related entities will be included.</param>
-    /// <returns>A task representing the asynchronous operation, containing the list of users.</returns>
-    Task<List<User>> GetAllUsers(bool includeRelated = false);
 }
