@@ -125,4 +125,13 @@ public interface IUserService
     /// <param name="request"> username and password for logging in. </param>
     /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
     Task<UserLoginResponse?> AuthenticateAsync(UserLoginRequest request);
+
+    /// <summary>
+    /// Changes the password for a user.
+    /// </summary>
+    /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="currentPassword"> User's current password. </param>
+    /// <param name="newPassword"> User's intended new password. </param>
+    /// <returns>he response containing the success/failure of the request.</returns>
+    Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
 }

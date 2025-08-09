@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -99,6 +100,26 @@ public class UsersController : ControllerBase
         }
 
         return this.Ok(response);
+    }
+
+    /// <summary>
+    /// change password request.
+    /// </summary>
+    /// <param name="request"> current and new and password. </param>
+    /// <returns>Upon successful request, gets a jwt token. </returns>
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var userId = Guid.Parse(this.User.FindFirstValue(ClaimTypes.NameIdentifier) !);
+
+        var resp = await this.userService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+
+        if (!resp.Success)
+        {
+            return this.BadRequest(resp.ErrorMessage);
+        }
+
+        return this.Ok("Password changed successfully");
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Application.Extensions;
 using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
+using CohesionX.UserManagement.Database;
 using CohesionX.UserManagement.Extensions;
 using Prometheus;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
@@ -63,5 +64,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.ApplyDatabaseMigrations<AppDbContext>();
 
 app.Run();

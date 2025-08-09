@@ -77,11 +77,7 @@ public class UserService : IUserService
         this.jwtOptions = jwtOptions;
     }
 
-    /// <summary>
-    /// Registers a new user.
-    /// </summary>
-    /// <param name="dto">The user registration request data.</param>
-    /// <returns>The response containing user registration details.</returns>
+    /// <inheritdoc/>
     public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
     {
         // Validate required fields
@@ -92,6 +88,21 @@ public class UserService : IUserService
         {
             this.logger.LogWarning($"Registration failed due to missing fields. Payload: {dto}");
             throw new ArgumentException("All required fields must be provided");
+        }
+
+        // Validate password strength
+        var passwordError = this.ValidatePassword(dto.Password);
+        if (passwordError != null)
+        {
+            this.logger.LogWarning($"Registration failed due to weak password. Email: {dto.Email}, Reason: {passwordError}");
+            throw new ArgumentException(passwordError);
+        }
+
+        // Validate South African ID if provided
+        if (!this.ValidateSouthAfricanId(dto.IdNumber))
+        {
+            this.logger.LogWarning($"Registration failed due to invalid South African ID. Email: {dto.Email}, IdNumber: {dto.IdNumber}");
+            throw new ArgumentException("Invalid South African ID number");
         }
 
         // Check if email already exists
@@ -147,9 +158,9 @@ public class UserService : IUserService
 
         // Attempt activation
         var verificationRequired = new List<string>
-        {
-            "id_document_upload",
-        };
+    {
+        "id_document_upload",
+    };
 
         await this.repo.AddAsync(user);
         await this.repo.SaveChangesAsync();
@@ -164,11 +175,7 @@ public class UserService : IUserService
         };
     }
 
-    /// <summary>
-    /// Gets the profile information for a user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The user's profile response.</returns>
+    /// <inheritdoc/>
     public async Task<UserProfileResponse> GetProfileAsync(Guid userId)
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -239,11 +246,7 @@ public class UserService : IUserService
         return dto;
     }
 
-    /// <summary>
-    /// Gets the user entity by user ID.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The user entity.</returns>
+    /// <inheritdoc/>
     public async Task<User> GetUserAsync(Guid userId)
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -256,11 +259,7 @@ public class UserService : IUserService
         return user;
     }
 
-    /// <summary>
-    /// Gets the user entity by email address.
-    /// </summary>
-    /// <param name="email">The user's email address.</param>
-    /// <returns>The user entity.</returns>
+    /// <inheritdoc/>
     public async Task<User> GetUserByEmailAsync(string email)
     {
         var user = await this.repo.GetUserByEmailAsync(email);
@@ -273,40 +272,20 @@ public class UserService : IUserService
         return user;
     }
 
-    /// <summary>
-    /// Gets a filtered list of users based on dialect, Elo rating, workload, and limit.
-    /// </summary>
-    /// <param name="dialect">Dialect filter.</param>
-    /// <param name="minElo">Minimum Elo rating.</param>
-    /// <param name="maxElo">Maximum Elo rating.</param>
-    /// <param name="maxWorkload">Maximum workload.</param>
-    /// <param name="limit">Maximum number of users to return.</param>
-    /// <returns>A list of filtered user entities.</returns>
+    /// <inheritdoc/>
     public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
     {
         var users = await this.repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
         return users;
     }
 
-    /// <summary>
-    /// Updates the audit log for a user's availability change.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="existingAvailability">The current availability data.</param>
-    /// <param name="ipAddress">The IP address of the request.</param>
-    /// <param name="userAgent">The user agent string of the request.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <inheritdoc/>
     public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
     {
         await this.auditLogRepo.UpdateUserAvailabilityAuditLog(userId, existingAvailability, ipAddress, userAgent);
     }
 
-    /// <summary>
-    /// Activates a user after verification.
-    /// </summary>
-    /// <param name="user">The user entity to activate.</param>
-    /// <param name="verificationDto">The verification request details.</param>
-    /// <returns>The verification response.</returns>
+    /// <inheritdoc/>
     public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
     {
         user.Status = UserStatusType.Active.ToDisplayName();
@@ -339,12 +318,7 @@ public class UserService : IUserService
         return response;
     }
 
-    /// <summary>
-    /// Checks if the provided ID number matches the user's record.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="idNumber">The ID number to check.</param>
-    /// <returns><c>true</c> if the ID number matches; otherwise, <c>false</c>.</returns>
+    /// <inheritdoc/>
     public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
     {
         var user = await this.repo.GetUserByIdAsync(userId);
@@ -357,14 +331,7 @@ public class UserService : IUserService
         return user.IdNumber == idNumber;
     }
 
-    /// <summary>
-    /// Claims a job for a user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="claimId">The claim identifier.</param>
-    /// <param name="claimJobRequest">The job claim request details.</param>
-    /// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <inheritdoc/>
     public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
     {
         var jobClaim = new JobClaim
@@ -381,12 +348,7 @@ public class UserService : IUserService
         await this.jobClaimRepo.SaveChangesAsync();
     }
 
-    /// <summary>
-    /// Validates a tiebreaker claim for a user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="validationReq">The tiebreaker claim request details.</param>
-    /// <returns>The tiebreaker claim validation response.</returns>
+    /// <inheritdoc/>
     public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -411,12 +373,7 @@ public class UserService : IUserService
         };
     }
 
-    /// <summary>
-    /// Sets the professional status for a user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="validationReq">The request containing professional status details.</param>
-    /// <returns>The response containing updated professional status.</returns>
+    /// <inheritdoc/>
     public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -476,11 +433,7 @@ public class UserService : IUserService
         };
     }
 
-    /// <summary>
-    /// Gets the professional status for a user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The professional status response.</returns>
+    /// <inheritdoc/>
     public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
     {
         var user = await this.repo.GetUserByIdAsync(userId, includeRelated: true);
@@ -533,11 +486,7 @@ public class UserService : IUserService
         return response;
     }
 
-    /// <summary>
-    /// Setss the professional status for multiple users.
-    /// </summary>
-    /// <param name="userIds">The users' unique identifier.</param>
-    /// <returns>The professional status response.</returns>
+    /// <inheritdoc/>
     public async Task<ProfessionalStatusBatchResponse> GetBatchProfessionalStatus(List<Guid> userIds)
     {
         var users = await this.repo.GetFilteredListAsync(u => userIds.Contains(u.Id));
@@ -567,11 +516,7 @@ public class UserService : IUserService
         return response;
     }
 
-    /// <summary>
-    /// Authenticates a user login request.
-    /// </summary>
-    /// <param name="request"> username and password for logging in. </param>
-    /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
+    /// <inheritdoc/>
     public async Task<UserLoginResponse?> AuthenticateAsync(UserLoginRequest request)
     {
         var user = await this.repo.GetUserByEmailAsync(request.Username);
@@ -611,12 +556,38 @@ public class UserService : IUserService
         };
     }
 
-    /// <summary>
-    /// Gets the missing criteria for professional eligibility.
-    /// </summary>
-    /// <param name="elo">The user's current Elo rating.</param>
-    /// <param name="totalJobs">The user's total jobs completed.</param>
-    /// <returns>A list of missing criteria strings.</returns>
+    /// <inheritdoc/>
+    public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        var user = await this.repo.GetUserByIdAsync(userId);
+        if (user == null)
+        {
+            this.logger.LogError("Invalid user Id.");
+            throw new ArgumentException("User not found");
+        }
+
+        if (!PasswordHasher.Verify(currentPassword, user.PasswordHash))
+        {
+            this.logger.LogWarning($"Password change failed: incorrect current password for user {user.Email}");
+            return (false, "Current password is incorrect");
+        }
+
+        var passwordValidationError = this.ValidatePassword(newPassword);
+        if (passwordValidationError != null)
+        {
+            this.logger.LogWarning($"Password change failed for user {user.Email}: {passwordValidationError}");
+            return (false, passwordValidationError);
+        }
+
+        user.PasswordHash = PasswordHasher.Hash(newPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await this.repo.SaveChangesAsync();
+        this.logger.LogInformation($"Password changed successfully for user {user.Email}");
+        return (true, null);
+    }
+
+    // Private methods.
     private List<string> GetMissingCriteria(int elo, int totalJobs)
     {
         List<string> missingCriteria = new List<string>();
@@ -633,11 +604,6 @@ public class UserService : IUserService
         return missingCriteria;
     }
 
-    /// <summary>
-    /// Gets skill level from elo.
-    /// </summary>
-    /// <param name="elo"> current elo. </param>
-    /// <returns> level. </returns>
     private string GetSkillLevelFromElo(int elo)
     {
         if (elo >= 1600)
@@ -658,11 +624,6 @@ public class UserService : IUserService
         return "novice";
     }
 
-    /// <summary>
-    /// Get the last verification record where transcriber was set to professional.
-    /// </summary>
-    /// <param name="user"> user in question. </param>
-    /// <returns> Verification record. </returns>
     private VerificationRecord? GetLastProfessionalVerificationRecord(User user)
     {
         return user.VerificationRecords
@@ -673,5 +634,60 @@ public class UserService : IUserService
                 user.Role == UserRoleType.Professional.ToDisplayName())
             .OrderByDescending(v => v.VerifiedAt)
             .FirstOrDefault();
+    }
+
+    private string? ValidatePassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return "Password is required";
+        }
+
+        if (password.Length < 8)
+        {
+            return "Password must be at least 8 characters long";
+        }
+
+        if (!password.Any(char.IsUpper))
+        {
+            return "Password must contain at least one uppercase letter";
+        }
+
+        if (!password.Any(char.IsLower))
+        {
+            return "Password must contain at least one lowercase letter";
+        }
+
+        if (!password.Any(char.IsDigit))
+        {
+            return "Password must contain at least one digit";
+        }
+
+        if (!password.Any(ch => !char.IsLetterOrDigit(ch)))
+        {
+            return "Password must contain at least one special character";
+        }
+
+        return null; // Valid password
+    }
+
+    private bool ValidateSouthAfricanId(string? idNumber)
+    {
+        if (string.IsNullOrEmpty(idNumber))
+        {
+            return true; // Accept null or empty
+        }
+
+        if (idNumber.Length != 13)
+        {
+            return false;
+        }
+
+        if (!idNumber.All(char.IsDigit))
+        {
+            return false;
+        }
+
+        return true; // Simple length and digit check only
     }
 }
