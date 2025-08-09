@@ -70,11 +70,7 @@ public class EloService : IEloService
         this.logger = logger;
     }
 
-    /// <summary>
-    /// Applies Elo updates based on the provided request.
-    /// </summary>
-    /// <param name="request">The Elo update request details.</param>
-    /// <returns>The result of the Elo update operation.</returns>
+    /// <inheritdoc />
     public async Task<EloUpdateResponse> ApplyEloUpdatesAsync(EloUpdateRequest request)
     {
         var eloUpdateResp = new EloUpdateResponse
@@ -105,19 +101,16 @@ public class EloService : IEloService
         }
 
         var eloHistoryRecords = new List<EloHistory>();
+        var jobCompletions = new List<JobCompletion>();
         var cutOffDate = DateTime.UtcNow.AddDays(-7);
 
         foreach (var eloChange in request.RecommendedEloChanges)
         {
+            var utcNow = DateTime.UtcNow;
             var userStats = userStatisticsDb
                 .FirstOrDefault(us => us.UserId == eloChange.TranscriberId)
                 ?? throw new KeyNotFoundException($"User statistics not found for user {eloChange.TranscriberId}");
 
-            //// Validate current elo matches OldElo
-            // if (userStats.CurrentElo != eloChange.OldElo)
-            // {
-            // throw new Exception($"Current Elo mismatch for user {eloChange.TranscriberId}. Expected {userStats.CurrentElo}, but request has {eloChange.OldElo}.");
-            // }
             var newElo = eloChange.OldElo + eloChange.RecommendedChange;
 
             var eloHistoryRecord = new EloHistory
@@ -132,7 +125,18 @@ public class EloService : IEloService
                 Outcome = eloChange.ComparisonOutcome ?? string.Empty,
                 ComparisonType = request.ComparisonMetadata.ComparisonType ?? string.Empty,
                 KFactorUsed = this.CalculateKFactor(userStats.GamesPlayed),
-                ChangedAt = DateTime.UtcNow,
+                ChangedAt = utcNow,
+            };
+
+            var jobCompletion = new JobCompletion
+            {
+                UserId = eloChange.TranscriberId,
+                JobId = request.WorkflowRequestId ?? string.Empty,
+                Outcome = eloChange.ComparisonOutcome ?? string.Empty,
+                EloChange = eloChange.RecommendedChange,
+                ComparisonId = request.QaComparisonId,
+                CreatedAt = utcNow,
+                CompletedAt = utcNow,
             };
 
             // Update stats in-memory
@@ -140,9 +144,10 @@ public class EloService : IEloService
             userStats.PeakElo = Math.Max(userStats.PeakElo, newElo);
             userStats.GamesPlayed++;
             userStats.LastCalculated = eloHistoryRecord.ChangedAt;
-            userStats.UpdatedAt = DateTime.UtcNow;
+            userStats.UpdatedAt = utcNow;
 
             eloHistoryRecords.Add(eloHistoryRecord);
+            jobCompletions.Add(jobCompletion);
 
             eloUpdateResp.EloUpdatesApplied.Add(new EloUpdateAppliedDto
             {
@@ -163,12 +168,12 @@ public class EloService : IEloService
                 PeakElo = userStats.PeakElo,
                 GamesPlayed = userStats.GamesPlayed,
                 RecentTrend = this.GetEloTrend(recentHistory, 7),
-                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job table
+                LastJobCompleted = jobCompletion.CompletedAt,
             });
         }
 
-        this.unitOfWork.UserStatistics.UpdateRange(userStatisticsDb);
         await this.unitOfWork.EloHistories.AddRangeAsync(eloHistoryRecords);
+        await this.unitOfWork.JobCompletions.AddRangeAsync(jobCompletions);
         await this.unitOfWork.SaveChangesAsync();
         var notifyEloUpdateReq = new EloUpdateNotificationRequest
         {
@@ -191,11 +196,7 @@ public class EloService : IEloService
         return eloUpdateResp;
     }
 
-    /// <summary>
-    /// Retrieves the Elo history for a specific user.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The Elo history response for the user.</returns>
+    /// <inheritdoc />
     public async Task<EloHistoryResponse> GetEloHistoryAsync(Guid userId)
     {
         var user = await this.userRepo.GetUserByIdAsync(userId, includeRelated: true);
@@ -246,12 +247,7 @@ public class EloService : IEloService
         return response;
     }
 
-    /// <summary>
-    /// Gets the Elo trend for a user over a specified number of days.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="days">The number of days to analyze.</param>
-    /// <returns>A string representing the Elo trend.</returns>
+    /// <inheritdoc />
     public async Task<string> GetEloTrend(Guid userId, int days)
     {
         var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -273,12 +269,7 @@ public class EloService : IEloService
         return $"{sign}{Math.Abs(diff)}_over_{days}_days";
     }
 
-    /// <summary>
-    /// Gets the Elo trend for a list of Elo history records over a specified number of days.
-    /// </summary>
-    /// <param name="eloHistories">The list of Elo history records.</param>
-    /// <param name="days">The number of days to analyze.</param>
-    /// <returns>A string representing the Elo trend.</returns>
+    /// <inheritdoc />
     public string GetEloTrend(List<EloHistory> eloHistories, int days)
     {
         var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -299,12 +290,7 @@ public class EloService : IEloService
         return $"{sign}{Math.Abs(diff)}_over_{days}_days";
     }
 
-    /// <summary>
-    /// Gets Elo trends for multiple users over a specified number of days.
-    /// </summary>
-    /// <param name="userIds">The list of user identifiers.</param>
-    /// <param name="days">The number of days to analyze.</param>
-    /// <returns>A dictionary mapping user IDs to their Elo trend strings.</returns>
+    /// <inheritdoc />
     public async Task<Dictionary<Guid, string>> BulkEloTrendAsync(List<Guid> userIds, int days)
     {
         var cutOffDate = DateTime.UtcNow.AddDays(-days);
@@ -343,12 +329,7 @@ public class EloService : IEloService
         return grouped;
     }
 
-    /// <summary>
-    /// Calculates the win rate from a list of Elo history records.
-    /// </summary>
-    /// <param name="eloHistories">The list of Elo history records.</param>
-    /// <param name="days">Optional number of days to filter the records.</param>
-    /// <returns>The win rate as a double.</returns>
+    /// <inheritdoc />
     public double GetWinRate(List<EloHistory> eloHistories, int? days = null)
     {
         if (days.HasValue)
@@ -368,12 +349,7 @@ public class EloService : IEloService
         return winRate;
     }
 
-    /// <summary>
-    /// Calculates the average opponent Elo from a list of Elo history records.
-    /// </summary>
-    /// <param name="eloHistories">The list of Elo history records.</param>
-    /// <param name="days">Optional number of days to filter the records.</param>
-    /// <returns>The average opponent Elo as a double.</returns>
+    /// <inheritdoc />
     public double GetAverageOpponentElo(List<EloHistory> eloHistories, int? days = null)
     {
         if (days.HasValue)
@@ -394,11 +370,7 @@ public class EloService : IEloService
         return validEloEntries.Average();
     }
 
-    /// <summary>
-    /// Resolves a three-way Elo update scenario.
-    /// </summary>
-    /// <param name="twuReq">The three-way Elo update request details.</param>
-    /// <returns>The result of the three-way resolution operation.</returns>
+    /// <inheritdoc />
     public async Task<ThreeWayEloUpdateResponse> ResolveThreeWay(ThreeWayEloUpdateRequest twuReq)
     {
         // Validate input count
@@ -442,12 +414,15 @@ public class EloService : IEloService
             .First(c => c.Role == ThreeWayTranscriberRoleType.TiebreakerTranscriber.ToDisplayName());
 
         var eloHistories = new List<EloHistory>();
+        var jobCompletions = new List<JobCompletion>();
         var updateResults = new List<EloUpdateResult>();
         var userNotifications = new List<UserNotification>();
 
         // We'll add tiebreaker's eloChange to original transcriber with minority outcome
         foreach (var change in twuReq.ThreeWayEloChanges)
         {
+            var utcNow = DateTime.UtcNow;
+
             if (!EnumDisplayHelper.TryParseDisplayName(change.Role, out ThreeWayTranscriberRoleType roleEnum))
             {
                 this.logger.LogWarning($"Invalid user role provided. Provided: {change.Role}");
@@ -471,8 +446,8 @@ public class EloService : IEloService
             stats.CurrentElo = newElo;
             stats.PeakElo = Math.Max(stats.PeakElo, newElo);
             stats.GamesPlayed++;
-            stats.LastCalculated = DateTime.UtcNow;
-            stats.UpdatedAt = DateTime.UtcNow;
+            stats.LastCalculated = utcNow;
+            stats.UpdatedAt = utcNow;
 
             var eloHistoryRecord = new EloHistory
             {
@@ -482,12 +457,24 @@ public class EloService : IEloService
                 Reason = "three_way_resolution",
                 Outcome = change.Outcome,
                 ComparisonId = twuReq.OriginalComparisonId,
-                JobId = twuReq.WorkflowRequestId,
+                JobId = twuReq.WorkflowRequestId ?? string.Empty,
                 ComparisonType = "three_way",
                 KFactorUsed = this.CalculateKFactor(stats.GamesPlayed),
-                ChangedAt = DateTime.UtcNow,
+                ChangedAt = utcNow,
             };
             eloHistories.Add(eloHistoryRecord);
+
+            var jobCompletion = new JobCompletion
+            {
+                UserId = stats.UserId,
+                JobId = twuReq.WorkflowRequestId ?? string.Empty,
+                Outcome = change.Outcome,
+                EloChange = change.EloChange,
+                ComparisonId = twuReq.OriginalComparisonId,
+                CreatedAt = utcNow,
+                CompletedAt = utcNow,
+            };
+            jobCompletions.Add(jobCompletion);
 
             updateResults.Add(new EloUpdateResult
             {
@@ -516,17 +503,17 @@ public class EloService : IEloService
                 PeakElo = stats.PeakElo,
                 GamesPlayed = stats.GamesPlayed,
                 RecentTrend = this.GetEloTrend(recentHistory, 7),
-                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job table
+                LastJobCompleted = jobCompletion.CompletedAt,
             });
         }
 
-        this.userStatRepo.UpdateRange(userStatsDb);
         await this.unitOfWork.EloHistories.AddRangeAsync(eloHistories);
+        await this.unitOfWork.JobCompletions.AddRangeAsync(jobCompletions);
         await this.unitOfWork.SaveChangesAsync();
 
         var notifyReq = new EloUpdateNotificationRequest
         {
-            UpdateId = twuReq.WorkflowRequestId,
+            UpdateId = twuReq.WorkflowRequestId ?? string.Empty,
             EventType = WorkflowEventType.EloUpdated.ToDisplayName(),
             EventData = new EloUpdateEventData
             {
@@ -547,11 +534,6 @@ public class EloService : IEloService
         };
     }
 
-    /// <summary>
-    /// Calculates the K-factor for Elo updates based on games played.
-    /// </summary>
-    /// <param name="gamesPlayed">The number of games played by the user.</param>
-    /// <returns>The K-factor value.</returns>
     private int CalculateKFactor(int gamesPlayed)
     {
         return gamesPlayed switch

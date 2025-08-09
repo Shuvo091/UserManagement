@@ -25,6 +25,11 @@ public interface IUnitOfWork
     IUserRepository Users { get; }
 
     /// <summary>
+    /// Gets the repository for managing user entities.
+    /// </summary>
+    IJobCompletionRepository JobCompletions { get; }
+
+    /// <summary>
     /// Saves all pending changes across repositories to the data store asynchronously.
     /// </summary>
     /// <returns>A task representing the asynchronous operation, returning the number of affected records.</returns>

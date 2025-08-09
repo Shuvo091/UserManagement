@@ -24,6 +24,7 @@ public class UnitOfWork : IUnitOfWork
         this.context = context;
         this.EloHistories = new EloRepository(this.context);
         this.UserStatistics = new UserStatisticsRepository(this.context);
+        this.JobCompletions = new JobCompletionRepository(this.context);
         this.Users = new UserRepository(this.context);
     }
 
@@ -41,6 +42,11 @@ public class UnitOfWork : IUnitOfWork
     /// Gets the repository for managing user entities.
     /// </summary>
     public IUserRepository Users { get; }
+
+    /// <summary>
+    /// Gets the repository for managing user entities.
+    /// </summary>
+    public IJobCompletionRepository JobCompletions { get; }
 
     /// <summary>
     /// Persists all changes made in the context to the database asynchronously.
