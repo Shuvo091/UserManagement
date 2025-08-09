@@ -163,7 +163,7 @@ public class EloService : IEloService
                 PeakElo = userStats.PeakElo,
                 GamesPlayed = userStats.GamesPlayed,
                 RecentTrend = this.GetEloTrend(recentHistory, 7),
-                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job yable
+                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job table
             });
         }
 
@@ -516,7 +516,7 @@ public class EloService : IEloService
                 PeakElo = stats.PeakElo,
                 GamesPlayed = stats.GamesPlayed,
                 RecentTrend = this.GetEloTrend(recentHistory, 7),
-                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job yable
+                LastJobCompleted = eloHistoryRecord.ChangedAt, // TODO: take last job completed at from job table
             });
         }
 

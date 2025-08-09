@@ -34,9 +34,10 @@
     <Folder Include="Controllers\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ContainerPort Include="8081" />
-  </ItemGroup>
+    <ItemGroup>
+        <ContainerPort Include="5090" />
+        <ContainerPort Include="5091" />
+    </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CohesionX.UserManagement.Abstractions\CohesionX.UserManagement.Abstractions.csproj" />

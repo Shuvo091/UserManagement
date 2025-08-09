@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -34,27 +36,71 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "9090:80"
+      - "5090:5090"
+      - "5091:5091"
     environment:
-      DB_CONNECTION_STRING__db_secrets: "Host=postgres;Port=5432;Database=CohesionX_UserManagement;Username=postgres;Password=Itachi007!;SslMode=Disable"
-      Redis__ConnectionString: "redis:6379"
-      IdentityServer__Authority: "https://dev.vectormind.chat/security"
-      IdentityServer__ApiName: "api"
-      ENABLE_GRPC: "false"
-      ENABLE_ID_DOCUMENT_COLLECTION: "true"
-      POPIA_COMPLIANCE_MODE: "strict"
-      INITIAL_ELO_RATING: "1200"
-      MIN_ELO_REQUIRED_FOR_PRO: "1600"
-      MIN_JOBS_REQUIRED_FOR_PRO: "500"
-      ELO_K_FACTOR_NEW: "32"
-      ELO_K_FACTOR_ESTABLISHED: "24"
-      ELO_K_FACTOR_EXPERT: "16"
-      JOB_TIMEOUT_HOURS: "4"
-      MAX_CONCURRENT_JOBS: "3"
-      REDIS_CACHE_TTL_MINUTES: "360"
-      DEFAULT_BOOKOUT_MINUTES: "480"
-      WORKFLOW_ENGINE_BASE_URI: "https://workflow-engine-service"
-      WORKFLOW_ENGINE_ELO_NOTIFY_URI: "https://workflow-engine-service"
+      # Database Options
+      DatabasesOptions__PostgreSQLConnectionString: "Host=postgres;Port=5432;Database=CohesionX_UserManagement;Username=postgres;Password=Itachi007!"
+      
+      # Redis Options
+      RedisConfiguration__ConnectionString: "redis:6379"
+      RedisConfiguration__DatabaseId: "0"
+      RedisConfiguration__ConnectTimeout: "60000"
+      RedisConfiguration__SyncTimeout: "60000"
+      RedisConfiguration__ConnectRetry: "3"
+      RedisConfiguration__ReconnectRetryPolicy: "3"
+      
+      # Identity Server
+      IdentityServerOptions__Authority: "https://dev.vectormind.chat/security"
+      IdentityServerOptions__ApiName: "api"
+
+      # App Constants
+      AppConstantsOptions__EnableGrpc: "false"
+      AppConstantsOptions__EnableIdDocumentCollection: "true"
+      AppConstantsOptions__PopiaComplianceMode: "strict"
+      AppConstantsOptions__InitialEloRating: "1200"
+      AppConstantsOptions__MinEloRequiredForPro: "1600"
+      AppConstantsOptions__MinJobsRequiredForPro: "500"
+      AppConstantsOptions__EloKFactorNew: "32"
+      AppConstantsOptions__EloKFactorEstablished: "24"
+      AppConstantsOptions__EloKFactorExpert: "16"
+      AppConstantsOptions__JobTimeoutHours: "4"
+      AppConstantsOptions__MaxConcurrentJobs: "3"
+      AppConstantsOptions__RedisCacheTtlMinutes: "360"
+      AppConstantsOptions__DefaultBookoutMinutes: "480"
+
+      # Workflow Engine
+      WorkflowEngineOptions__BaseUri: "https://workflow-engine-service"
+      WorkflowEngineOptions__EloNotifyUri: "https://workflow-engine-service"
+
+      # OpenTelemetry
+      OpenTelemetryOptions__ServiceName: "UserManagement"
+      OpenTelemetryOptions__ServiceVersion: "1.0.0"
+      OpenTelemetryOptions__AzureApplicationInsightsConnStr: "<azure_conn_str>"
+
+      # JWT
+      JwtOptions__Secret: "0fb7d3a1e50741308310b58d75e16a92a1556b8b2a41c80a8dc9e8a8715bc5ef"
+      JwtOptions__Issuer: "CohesionX.UserManagement"
+      JwtOptions__ExpiryMinutes: "60"
+
+      # Validation
+      ValidationOptions__RequireIdDocument: "true"
+      ValidationOptions__RequirePhotoUpload: "true"
+      ValidationOptions__RequirePhoneVerification: "true"
+      ValidationOptions__RequireEmailVerification: "true"
+      ValidationOptions__VerificationLevel: "basic_v1"
+      ValidationOptions__ValidationRules__IdNumber: "format_validation_only"
+      ValidationOptions__ValidationRules__photo: "presence_check_only"
+      ValidationOptions__ValidationRules__note: "V2_will_add_dha_verification"
+      ValidationOptions__Reason: "PII_compliance_SA_POPIA_with_basic_validation"
+
+      # ASP.NET Core Defaults
       AllowedHosts: "*"
-      ASPNETCORE_URLS: "http://+:80"
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 5090
+      ASPNETCORE_HTTPS_PORTS: 5091
+      ASPNETCORE_ENVIRONMENT: "Production"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro

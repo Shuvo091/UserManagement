@@ -1,12 +1,14 @@
+version: "3.9"
+
 services:
   cohesionx.usermanagement:
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 5090
+      ASPNETCORE_HTTPS_PORTS: 5091
     ports:
-      - "8080"
-      - "8081"
+      - "5090"
+      - "5091"
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro

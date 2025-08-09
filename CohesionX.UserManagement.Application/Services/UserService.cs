@@ -225,14 +225,14 @@ public class UserService : IUserService
                 {
                     JobsCompleted = jobsLast30Days,
                     EloChange = eloTrend30,
-                    Earnings = 0, // TODO: Calculate
+                    Earnings = 0, // Earning is out of scope for v1.
                 },
             },
             Preferences = new UserPreferencesDto
             {
                 MaxConcurrentJobs = 3,
                 DialectPreferences = user.Dialects.Select(d => d.Dialect).ToList(),
-                PreferredJobTypes = new (), // TODO: Where to get preferred job type
+                PreferredJobTypes = new (), // Preferred job type is out of scope for v1.
             },
         };
 
