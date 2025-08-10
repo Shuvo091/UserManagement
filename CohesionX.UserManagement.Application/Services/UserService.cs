@@ -7,7 +7,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using AutoMapper;
-using CohesionX.UserManagement.Abstractions.DTOs;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
@@ -249,7 +248,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<User> GetUserAsync(Guid userId)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, false, true);
+        var user = await this.repo.GetUserByIdAsync(userId);
         if (user == null)
         {
             this.logger.LogWarning($"User with ID {userId} is not found.");
@@ -352,7 +351,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, false, true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, false, u => u.JobClaims, userId => userId.Statistics!);
         var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
         if (user == null || claim == null || user.Statistics == null)
         {
@@ -377,7 +376,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<SetProfessionalResponse> SetProfessional(Guid userId, SetProfessionalRequest validationReq)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, false, true);
+        var user = await this.repo.GetUserByIdAsync(userId, true, false, u => u.Statistics!, userId => userId.VerificationRecords);
         var authorizedBy = await this.repo.GetUserByIdAsync(validationReq.AuthorizedBy);
         if (user == null || user.Statistics == null)
         {
@@ -420,7 +419,6 @@ public class UserService : IUserService
         });
         user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
 
-        this.repo.Update(user);
         await this.repo.SaveChangesAsync();
 
         return new SetProfessionalResponse
@@ -437,7 +435,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<GetProfessionalStatusResponse> GetProfessionalStatus(Guid userId)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, false, true);
+        var user = await this.repo.GetUserByIdAsync(userId, false, false, u => u.Statistics!);
         if (user == null || user.Statistics == null)
         {
             this.logger.LogWarning($"Getting professional status failed because User with ID {userId} not found.");
@@ -560,7 +558,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
     {
-        var user = await this.repo.GetUserByIdAsync(userId);
+        var user = await this.repo.GetUserByIdAsync(userId, true);
         if (user == null)
         {
             this.logger.LogError("Invalid user Id.");

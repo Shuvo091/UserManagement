@@ -12,6 +12,7 @@ using Moq;
 using SharedLibrary.AppEnums;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
+using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Application.Tests;
 
@@ -72,10 +73,10 @@ public class EloServiceTests
             WorkflowRequestId = "job1",
             QaComparisonId = Guid.NewGuid(),
             RecommendedEloChanges = new List<RecommendedEloChangeDto>
-            {
-                new () { TranscriberId = user1, OldElo = 1200, OpponentElo = 1250, RecommendedChange = 10, ComparisonOutcome = "win" },
-                new () { TranscriberId = user2, OldElo = 1200, OpponentElo = 1150, RecommendedChange = -5, ComparisonOutcome = "loss" },
-            },
+        {
+            new () { TranscriberId = user1, OldElo = 1200, OpponentElo = 1250, RecommendedChange = 10, ComparisonOutcome = "win" },
+            new () { TranscriberId = user2, OldElo = 1200, OpponentElo = 1150, RecommendedChange = -5, ComparisonOutcome = "loss" },
+        },
             ComparisonMetadata = new ComparisonMetadataDto
             {
                 QaMethod = "method",
@@ -84,17 +85,32 @@ public class EloServiceTests
         };
 
         var stats = new List<UserStatistics>
-        {
-            new () { UserId = user1, CurrentElo = 1200, PeakElo = 1200, GamesPlayed = 0 },
-            new () { UserId = user2, CurrentElo = 1200, PeakElo = 1200, GamesPlayed = 29 },
-        };
-        this._userStatRepo.Setup(x => x.GetByUserIdsAsync(It.IsAny<List<Guid>>(), true))
-                     .ReturnsAsync(stats);
+    {
+        new () { UserId = user1, CurrentElo = 1200, PeakElo = 1200, GamesPlayed = 0 },
+        new () { UserId = user2, CurrentElo = 1200, PeakElo = 1200, GamesPlayed = 29 },
+    };
+
+        this._userStatRepo
+            .Setup(x => x.GetByUserIdsAsync(It.IsAny<List<Guid>>(), true))
+            .ReturnsAsync(stats);
+
         this._eloRepo
-          .Setup(x => x.FindAsync(
-              It.IsAny<Expression<Func<EloHistory, bool>>>(),
-              It.IsAny<bool>()))
-          .ReturnsAsync(new List<EloHistory>());
+            .Setup(x => x.FindAsync(It.IsAny<Expression<Func<EloHistory, bool>>>(), It.IsAny<bool>()))
+            .ReturnsAsync(new List<EloHistory>());
+
+        // Add missing setups so strict mocks don't throw
+        this._uow.Setup(x => x.EloHistories.AddRangeAsync(It.IsAny<IEnumerable<EloHistory>>()))
+                 .Returns(Task.CompletedTask);
+        this._uow.Setup(x => x.JobCompletions.AddRangeAsync(It.IsAny<IEnumerable<JobCompletion>>()))
+                 .Returns(Task.CompletedTask);
+        this._uow.Setup(x => x.SaveChangesAsync())
+                 .Returns(Task.FromResult(1));
+
+        this._wfClient.Setup(x => x.NotifyEloUpdatedAsync(It.IsAny<EloUpdateNotificationRequest>()))
+              .Returns(Task.FromResult<EloUpdateNotificationResponse?>(new EloUpdateNotificationResponse()));
+
+        this._redis.Setup(x => x.SetUserEloAsync(It.IsAny<Guid>(), It.IsAny<UserEloRedisDto>()))
+                   .Returns(Task.CompletedTask);
 
         // Act
         var resp = await this._service.ApplyEloUpdatesAsync(req);
@@ -159,7 +175,14 @@ public class EloServiceTests
                 new () { ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1250, NewElo = 1300, OpponentElo = 1200, Outcome = "win", JobId = "j2" },
             },
         };
-        this._userRepo.Setup(x => x.GetUserByIdAsync(userId, false, true)).ReturnsAsync(user);
+        this._userRepo
+            .Setup(x => x.GetUserByIdAsync(
+                userId,
+                false,
+                false,
+                It.IsAny<Expression<Func<User, object>>>(),
+                It.IsAny<Expression<Func<User, object>>>()))
+            .ReturnsAsync(user);
 
         // Act
         var resp = await this._service.GetEloHistoryAsync(userId);
@@ -310,6 +333,18 @@ public class EloServiceTests
               It.IsAny<Expression<Func<EloHistory, bool>>>(),
               It.IsAny<bool>()))
           .ReturnsAsync(new List<EloHistory>());
+
+        this._uow.Setup(x => x.EloHistories.AddRangeAsync(It.IsAny<IEnumerable<EloHistory>>()))
+         .Returns(Task.CompletedTask);
+
+        this._uow.Setup(x => x.JobCompletions.AddRangeAsync(It.IsAny<IEnumerable<JobCompletion>>()))
+                 .Returns(Task.CompletedTask);
+
+        this._uow.Setup(x => x.SaveChangesAsync())
+                 .Returns(Task.FromResult(1));
+
+        this._wfClient.Setup(x => x.NotifyEloUpdatedAsync(It.IsAny<EloUpdateNotificationRequest>()))
+                      .Returns(Task.FromResult<EloUpdateNotificationResponse?>(new EloUpdateNotificationResponse()));
 
         // Act
         var resp = await this._service.ResolveThreeWay(req);
