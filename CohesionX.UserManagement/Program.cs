@@ -22,6 +22,9 @@ services.AddSwaggerGenWithJwt();
 // 2. Configuration binding
 services.ConfigureOptions(configuration);
 
+// 3. Httpcontext accessor
+services.AddHttpContextAccessor();
+
 // 4. Custom modules
 services.AddRedis(configuration);
 services.AddRedisCache();

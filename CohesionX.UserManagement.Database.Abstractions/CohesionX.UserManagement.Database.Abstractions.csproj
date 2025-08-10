@@ -10,7 +10,7 @@
   </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CohesionX.SharedLibrary" Version="8.9.25.1" />
+        <PackageReference Include="CohesionX.SharedLibrary" Version="8.10.25.2" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.18" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.18">
             <PrivateAssets>all</PrivateAssets>

@@ -3,6 +3,7 @@
 // </copyright>
 
 using SharedLibrary.AppEnums;
+using SharedLibrary.Common.Utilities;
 
 namespace CohesionX.UserManagement.Database.Abstractions.Entities;
 

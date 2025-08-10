@@ -11,12 +11,14 @@ using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SharedLibrary.AppEnums;
 using SharedLibrary.Common.Options;
 using SharedLibrary.Common.Security;
+using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
@@ -32,9 +34,13 @@ public class UserService : IUserService
     private readonly IAuditLogRepository auditLogRepo;
     private readonly IJobClaimRepository jobClaimRepo;
     private readonly IEloService eloService;
+    private readonly IVerificationRequirementService verificationRequirementService;
+    private readonly IRedisService redisService;
+    private readonly IHttpContextAccessor httpContextAccessor;
     private readonly int initElo;
     private readonly int minEloRequiredForPro;
     private readonly int minJobsRequiredForPro;
+    private readonly int defaultBookoutInMinutes;
     private readonly ILogger<UserService> logger;
     private readonly IOptions<JwtOptions> jwtOptions;
 
@@ -44,18 +50,24 @@ public class UserService : IUserService
     /// <param name="repo">Repository for managing user data persistence and retrieval.</param>
     /// <param name="auditLogRepo">Repository for logging user-related audit events and changes.</param>
     /// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
+    /// <param name="redisService">Service for managing Redis-based caching and availability tracking.</param>
+    /// <param name="httpContextAccessor"> Http Context accessor.</param>
     /// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
     /// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
     /// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
+    /// <param name="verificationRequirementService">Service to manage and retrieve verification requirements and policies.</param>
     /// <param name="logger"> logger. </param>
     /// <param name="jwtOptions"> the Jwt options from config. </param>
     public UserService(
         IUserRepository repo,
         IAuditLogRepository auditLogRepo,
         IJobClaimRepository jobClaimRepo,
+        IRedisService redisService,
+        IHttpContextAccessor httpContextAccessor,
         IMapper mapper,
         IOptions<AppConstantsOptions> appContantOptions,
         IEloService eloService,
+        IVerificationRequirementService verificationRequirementService,
         ILogger<UserService> logger,
         IOptions<JwtOptions> jwtOptions)
     {
@@ -63,7 +75,9 @@ public class UserService : IUserService
         this.auditLogRepo = auditLogRepo;
         this.jobClaimRepo = jobClaimRepo;
         this.eloService = eloService;
-
+        this.verificationRequirementService = verificationRequirementService;
+        this.redisService = redisService;
+        this.httpContextAccessor = httpContextAccessor;
         var initElo = appContantOptions.Value.InitialEloRating;
         this.initElo = initElo;
 
@@ -74,11 +88,19 @@ public class UserService : IUserService
         this.minJobsRequiredForPro = initMinJobsPro;
         this.logger = logger;
         this.jwtOptions = jwtOptions;
+
+        this.defaultBookoutInMinutes = appContantOptions.Value.DefaultBookoutMinutes;
     }
 
     /// <inheritdoc/>
     public async Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto)
     {
+        if (!dto.ConsentToDataProcessing)
+        {
+            this.logger.LogWarning("Rejecting registration: Consent to data processing needed!.");
+            throw new ArgumentException("Consent to data processing needed!");
+        }
+
         // Validate required fields
         if (string.IsNullOrWhiteSpace(dto.FirstName) ||
             string.IsNullOrWhiteSpace(dto.LastName) ||
@@ -286,16 +308,81 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc/>
-    public async Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto)
+    public async Task<VerificationResponse> ActivateUser(Guid userId, VerificationRequest verificationRequest)
     {
+        var requirements = await this.verificationRequirementService.GetEffectiveValidationOptionsAsync(userId);
+        if (requirements is null)
+        {
+            this.logger.LogWarning("Rejecting user verification: Verification requirements not configured.");
+            throw new InvalidOperationException("Verification requirements not configured.");
+        }
+
+        var user = await this.GetUserAsync(userId);
+        if (user is null)
+        {
+            this.logger.LogWarning($"Rejecting user verification: User not found. User id: {userId}");
+            throw new KeyNotFoundException("User not found.");
+        }
+
+        // Type check
+        if (requirements.RequireIdDocument &&
+            verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
+        {
+            this.logger.LogWarning($"Rejecting user verification: Verification type must be 'id_document'. Provided value: {verificationRequest.VerificationType}.");
+            throw new InvalidOperationException("Verification type must be 'id_document'.");
+        }
+
+        // ID Document check
+        var idValidation = verificationRequest.IdDocumentValidation;
+        if (requirements.RequireIdDocument)
+        {
+            if (idValidation is null || !idValidation.Enabled)
+            {
+                this.logger.LogWarning("Rejecting user verification: ID document validation must be enabled.");
+                throw new InvalidOperationException("ID document validation must be enabled.");
+            }
+
+            var validation = idValidation.ValidationResult;
+            if (validation is null ||
+                !validation.IdFormatValid ||
+                !validation.PhotoPresent ||
+                !idValidation.PhotoUploaded)
+            {
+                this.logger.LogWarning($"Rejecting user verification: ID document validation failed field checks. Provided values: Validation: {validation}, Id format valid : {validation?.IdFormatValid}, Photo present: {validation?.PhotoPresent}, Photo uploaded: {idValidation?.PhotoUploaded}");
+                throw new InvalidOperationException("ID document validation failed field checks.");
+            }
+        }
+
+        // Phone & Email check
+        var additional = verificationRequest.AdditionalVerification;
+
+        if (requirements.RequirePhoneVerification && (additional is null || !additional.PhoneVerification))
+        {
+            this.logger.LogWarning("Rejecting user verification: Phone verification is required.");
+            throw new InvalidOperationException("Phone verification is required.");
+        }
+
+        if (requirements.RequireEmailVerification && (additional is null || !additional.EmailVerification))
+        {
+            this.logger.LogWarning("Rejecting user verification: Email verification is required.");
+            throw new InvalidOperationException("Email verification is required.");
+        }
+
+        // Validate South African ID if provided
+        if (!this.ValidateSouthAfricanId(verificationRequest.IdDocumentValidation.IdNumber))
+        {
+            this.logger.LogWarning($"Registration failed due to invalid South African ID IdNumber: {verificationRequest.IdDocumentValidation.IdNumber}");
+            throw new ArgumentException("Invalid South African ID number");
+        }
+
         user.Status = UserStatusType.Active.ToDisplayName();
-        user.IdNumber = verificationDto.IdDocumentValidation.IdNumber;
+        user.IdNumber = verificationRequest.IdDocumentValidation.IdNumber;
         var verificationRecord = new VerificationRecord
         {
-            VerificationType = verificationDto.VerificationType,
+            VerificationType = verificationRequest.VerificationType,
             Status = VerificationStatusType.Approved.ToDisplayName(),
             VerificationLevel = VerificationLevelType.BasicV1.ToDisplayName(),
-            VerificationData = JsonSerializer.Serialize(verificationDto),
+            VerificationData = JsonSerializer.Serialize(verificationRequest),
             VerifiedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
         };
@@ -332,44 +419,111 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc/>
-    public async Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt)
+    public async Task<ClaimJobResponse> ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, List<Guid>? originalTranscribers = null, int? requiredMinElo = null)
     {
+        var claimId = Guid.NewGuid();
+        var availabilityCache = await this.redisService.GetAvailabilityAsync(userId);
+        var userEloCache = await this.redisService.GetUserEloAsync(userId);
+
+        if (availabilityCache == null)
+        {
+            // TODO: get from db and save cache
+        }
+
+        if (userEloCache == null)
+        {
+            // TODO: get from db and save cache
+        }
+
+        if (availabilityCache!.Status != UserAvailabilityType.Available.ToDisplayName())
+        {
+            this.logger.LogWarning($"Rejecting tiebreaker claim: User is currently unavailable for work. User Id: {userId}");
+            throw new ArgumentException("Rejecting tiebreaker claim: User is currently unavailable for work.");
+        }
+
+        if (availabilityCache.CurrentWorkload >= availabilityCache.MaxConcurrentJobs)
+        {
+            this.logger.LogWarning($"Rejecting tiebreaker claim: User already has maximum concurrent jobs. CurrentWorkload: {availabilityCache.CurrentWorkload}, MaxConcurrentJobs: {availabilityCache.MaxConcurrentJobs}");
+            throw new ArgumentException("Rejecting tiebreaker claim: User already has maximum concurrent jobs.");
+        }
+
+        if (originalTranscribers != null && originalTranscribers.Contains(userId))
+        {
+            this.logger.LogWarning($"Rejecting tiebreaker claim: User is original transcriber.");
+            throw new ArgumentException("Rejecting tiebreaker claim: User is original transcriber.");
+        }
+
+        if (requiredMinElo != null && requiredMinElo > userEloCache!.CurrentElo)
+        {
+            this.logger.LogWarning($"Rejecting tiebreaker claim: User already has maximum concurrent jobs. CurrentWorkload: {availabilityCache.CurrentWorkload}, MaxConcurrentJobs: {availabilityCache.MaxConcurrentJobs}");
+            throw new ArgumentException("Rejecting tiebreaker claim: User already has maximum concurrent jobs.");
+        }
+
+        var tryLockJobClaim = await this.redisService.TryClaimJobAsync(claimJobRequest.JobId, userId);
+        if (!tryLockJobClaim)
+        {
+            this.logger.LogWarning($"Rejecting tiebreaker claim:Job is already claimed by another user. Job id: {claimJobRequest.JobId}");
+            throw new ArgumentException("Rejecting tiebreaker claim:Job is already claimed by another user.");
+        }
+
+        this.logger.LogInformation($"Job: {claimJobRequest.JobId} successfully locked by user: {userId}.");
+
+        availabilityCache.CurrentWorkload++;
+        await this.redisService.AddUserClaimAsync(userId, claimJobRequest.JobId);
+        await this.redisService.SetAvailabilityAsync(userId, availabilityCache);
         var jobClaim = new JobClaim
         {
             Id = claimId,
             UserId = userId,
             JobId = claimJobRequest.JobId,
             ClaimedAt = claimJobRequest.ClaimTimestamp,
-            BookOutExpiresAt = bookouExpiresAt,
+            BookOutExpiresAt = DateTime.UtcNow.AddMinutes(this.defaultBookoutInMinutes),
             Status = JobClaimStatus.Pending.ToDisplayName(),
             CreatedAt = DateTime.UtcNow,
         };
         jobClaim = await this.jobClaimRepo.AddJobClaimAsync(jobClaim);
         await this.jobClaimRepo.SaveChangesAsync();
+
+        await this.redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
+        this.logger.LogInformation($"Job: {claimJobRequest.JobId} lock successfully released by user: {userId}.");
+
+        var response = new ClaimJobResponse
+        {
+            ClaimValidated = true,
+            UserEligible = true,
+            ClaimId = claimId,
+            UserAvailability = availabilityCache.Status,
+            CurrentWorkload = availabilityCache.CurrentWorkload,
+            MaxConcurrentJobs = availabilityCache.MaxConcurrentJobs,
+            CapacityReservedUntil = DateTime.UtcNow.AddMinutes(this.defaultBookoutInMinutes),
+            CurrentElo = userEloCache!.CurrentElo,
+        };
+        return response;
     }
 
     /// <inheritdoc/>
     public async Task<ValidateTiebreakerClaimResponse> ValidateTieBreakerClaim(Guid userId, ValidateTiebreakerClaimRequest validationReq)
     {
-        var user = await this.repo.GetUserByIdAsync(userId, false, false, u => u.JobClaims, userId => userId.Statistics!);
-        var claim = user?.JobClaims.FirstOrDefault(jc => jc.JobId == validationReq.OriginalJobId);
-        if (user == null || claim == null || user.Statistics == null)
+        var claimId = Guid.NewGuid();
+        var claimJobRequest = new ClaimJobRequest
         {
-            this.logger.LogWarning($"Validating tiebreaker claim failed because user with ID {userId} is not found.");
-            throw new KeyNotFoundException("User not found");
-        }
+            JobId = validationReq.OriginalJobId,
+            ClaimTimestamp = DateTime.UtcNow,
+        };
+
+        var jobClaim = await this.ClaimJobAsync(userId, claimJobRequest, validationReq.OriginalTranscribers, validationReq.RequiredMinElo);
+        this.logger.LogInformation($"Job: {claimJobRequest.JobId} successfully claimed by user: {userId}. Claim Id: {claimId}");
 
         return new ValidateTiebreakerClaimResponse
         {
-            TiebreakerClaimValidated = user != null && claim != null && user.Statistics != null
-            && user.Statistics.CurrentElo >= validationReq.RequiredMinElo && !validationReq.OriginalTranscribers.Contains(userId),
+            TiebreakerClaimValidated = true,
             UserId = userId,
-            UserEloQualified = user!.Statistics!.CurrentElo >= validationReq.RequiredMinElo,
-            CurrentElo = user.Statistics!.CurrentElo,
+            UserEloQualified = true,
+            CurrentElo = jobClaim.CurrentElo,
             IsOriginalTranscriber = validationReq.OriginalTranscribers.Contains(userId),
-            ClaimId = claim!.Id.ToString(),
-            BonusConfirmed = true, // TODO: Calculate
-            EstimatedCompletion = string.Empty, // TODO: Calculate based on job complexity
+            ClaimId = claimId.ToString(),
+            BonusConfirmed = true,
+            EstimatedCompletion = string.Empty, // Calculation not covered in v1
         };
     }
 
@@ -556,8 +710,9 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc/>
-    public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(string currentPassword, string newPassword)
     {
+        var userId = Guid.Parse(this.httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) !);
         var user = await this.repo.GetUserByIdAsync(userId, true);
         if (user == null)
         {
@@ -584,6 +739,97 @@ public class UserService : IUserService
         await this.repo.SaveChangesAsync();
         this.logger.LogInformation($"Password changed successfully for user {user.Email}");
         return (true, null);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<UserAvailabilityResponse>> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
+    {
+        var availableUsersResp = new List<UserAvailabilityResponse>();
+        var users = await this.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
+        if (!users.Any())
+        {
+            this.logger.LogWarning("No user found!");
+            return availableUsersResp;
+        }
+
+        // TODO: Get from db if cache is not found.
+        var cacheMap = await this.redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
+        var trendMap = await this.eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
+        var availableUsers = users
+            .Where(u => cacheMap.ContainsKey(u.Id)
+                    && cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
+            .Select(u =>
+            {
+                var availability = cacheMap.ContainsKey(u.Id)
+                    ? cacheMap[u.Id]
+                    : null;
+
+                return new AvailableUsersDto
+                {
+                    UserId = u.Id,
+                    EloRating = u.Statistics?.CurrentElo,
+                    PeakElo = u.Statistics?.PeakElo,
+                    DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
+                    CurrentWorkload = availability?.CurrentWorkload,
+                    RecentPerformance = trendMap[u.Id],
+                    GamesPlayed = u.Statistics?.GamesPlayed,
+                    Role = u.Role,
+                    BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
+                    LastActive = u.Statistics?.LastCalculated,
+                };
+            })
+            .ToList();
+
+        return availableUsersResp;
+    }
+
+    /// <inheritdoc/>
+    public async Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId)
+    {
+        return await this.redisService.GetAvailabilityAsync(userId);
+    }
+
+    /// <inheritdoc/>
+    public async Task<UserAvailabilityUpdateResponse> PatchAvailabilityAsync(Guid userId, UserAvailabilityUpdateRequest availabilityUpdateRequest)
+    {
+        var ipAddress = this.httpContextAccessor?.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = this.httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown";
+        var existingAvailability = await this.redisService.GetAvailabilityAsync(userId)
+                            ?? new UserAvailabilityRedisDto();
+
+        if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdateRequest.Status, out UserAvailabilityType outcome))
+        {
+            this.logger.LogWarning($"Rejecting availability update: Invalid Status. Provided value: {availabilityUpdateRequest.Status}");
+            throw new ArgumentException("Invalid Status Provided.");
+        }
+
+        if (availabilityUpdateRequest.MaxConcurrentJobs < 1)
+        {
+            this.logger.LogWarning("Rejecting availability update: MaxConcurrentJobs must be greater than 0. Provided value: {Value}", availabilityUpdateRequest.MaxConcurrentJobs);
+            throw new ArgumentException("Maximum concurrent job should be greater than 0");
+        }
+
+        if (availabilityUpdateRequest != null)
+        {
+            existingAvailability.Status = availabilityUpdateRequest.Status;
+            existingAvailability.MaxConcurrentJobs = availabilityUpdateRequest.MaxConcurrentJobs;
+        }
+
+        existingAvailability.LastUpdate = DateTime.UtcNow;
+
+        // Asynchrounously write to redis and persis in DB.
+        var redisTask = this.redisService.SetAvailabilityAsync(userId, existingAvailability);
+        var auditTask = this.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
+
+        await Task.WhenAll(redisTask, auditTask);
+
+        return new UserAvailabilityUpdateResponse
+        {
+            AvailabilityUpdated = "success",
+            CurrentStatus = existingAvailability.Status,
+            MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
+            LastUpdated = existingAvailability.LastUpdate,
+        };
     }
 
     // Private methods.

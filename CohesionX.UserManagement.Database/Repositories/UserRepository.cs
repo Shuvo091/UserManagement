@@ -38,7 +38,12 @@ public class UserRepository : Repository<User>, IUserRepository
         bool includeAll = false,
         params Expression<Func<User, object>>[] includes)
     {
-        IQueryable<User> query = this.context.Users.AsNoTracking();
+        IQueryable<User> query = this.context.Users;
+
+        if (trackChanges == false)
+        {
+            query = query.AsNoTracking();
+        }
 
         if (includeAll)
         {
@@ -74,7 +79,12 @@ public class UserRepository : Repository<User>, IUserRepository
         bool includeAll = false,
         params Expression<Func<User, object>>[] includes)
     {
-        IQueryable<User> query = this.context.Users.AsNoTracking();
+        IQueryable<User> query = this.context.Users;
+
+        if (trackChanges == false)
+        {
+            query = query.AsNoTracking();
+        }
 
         if (includeAll)
         {
@@ -110,7 +120,12 @@ public class UserRepository : Repository<User>, IUserRepository
         bool includeAll = false,
         params Expression<Func<User, object>>[] includes)
     {
-        IQueryable<User> query = this.context.Users.AsNoTracking();
+        IQueryable<User> query = this.context.Users;
+
+        if (trackChanges == false)
+        {
+            query = query.AsNoTracking();
+        }
 
         if (includeAll)
         {

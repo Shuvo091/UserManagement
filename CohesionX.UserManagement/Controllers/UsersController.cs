@@ -5,9 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
-using SharedLibrary.Contracts.Usermanagement.RedisDtos;
+using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.Requests;
-using SharedLibrary.Contracts.Usermanagement.Responses;
 
 namespace CohesionX.UserManagement.Controllers;
 
@@ -21,10 +20,7 @@ public class UsersController : ControllerBase
 {
     private readonly IUserService userService;
     private readonly IEloService eloService;
-    private readonly IVerificationRequirementService verificationRequirementService;
-    private readonly IRedisService redisService;
     private readonly int defaultBookoutInMinutes;
-    private readonly IServiceScopeFactory serviceScopeFactory;
     private readonly ILogger<UsersController> logger;
 
     /// <summary>
@@ -32,28 +28,17 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="userService">Service that handles user-related operations such as registration, updates, and retrieval.</param>
     /// <param name="eloService">Service that manages Elo rating calculations and history.</param>
-    /// <param name="redisService">Service for managing Redis-based caching and availability tracking.</param>
     /// <param name="appContantOptions">Application configuration used to access settings.</param>
-    /// <param name="serviceScopeFactory">Factory for creating service scopes, used for resolving scoped services inside background tasks.</param>
-    /// <param name="verificationRequirementService">Service to manage and retrieve verification requirements and policies.</param>
     /// <param name="logger"> logger. </param>
     public UsersController(
         IUserService userService,
         IEloService eloService,
-        IRedisService redisService,
         IOptions<AppConstantsOptions> appContantOptions,
-        IServiceScopeFactory serviceScopeFactory,
-        IVerificationRequirementService verificationRequirementService,
         ILogger<UsersController> logger)
     {
         this.userService = userService;
         this.eloService = eloService;
-        this.verificationRequirementService = verificationRequirementService;
-        this.redisService = redisService;
-        var defaultBookout = appContantOptions.Value.DefaultBookoutMinutes;
-
-        this.defaultBookoutInMinutes = defaultBookout;
-        this.serviceScopeFactory = serviceScopeFactory;
+        this.defaultBookoutInMinutes = appContantOptions.Value.DefaultBookoutMinutes;
         this.logger = logger;
     }
 
@@ -72,14 +57,7 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        if (!dto.ConsentToDataProcessing)
-        {
-            this.logger.LogWarning("Rejecting registration: Consent to data processing needed!.");
-            return this.BadRequest("Consent to data processing needed!");
-        }
-
         var result = await this.userService.RegisterUserAsync(dto);
-
         return this.CreatedAtAction(nameof(this.GetProfile), new { userId = result.UserId }, result);
     }
 
@@ -92,6 +70,12 @@ public class UsersController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] UserLoginRequest request)
     {
+        if (!this.ModelState.IsValid)
+        {
+            this.logger.LogWarning($"Rejecting login: Request object not valid. ModelState: {this.ModelState}");
+            return this.BadRequest(this.ModelState);
+        }
+
         var response = await this.userService.AuthenticateAsync(request);
         if (response == null)
         {
@@ -110,10 +94,13 @@ public class UsersController : ControllerBase
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
     {
-        var userId = Guid.Parse(this.User.FindFirstValue(ClaimTypes.NameIdentifier) !);
+        if (!this.ModelState.IsValid)
+        {
+            this.logger.LogWarning($"Password change rejected: Request object not valid. ModelState: {this.ModelState}");
+            return this.BadRequest(this.ModelState);
+        }
 
-        var resp = await this.userService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
-
+        var resp = await this.userService.ChangePasswordAsync(request.CurrentPassword, request.NewPassword);
         if (!resp.Success)
         {
             return this.BadRequest(resp.ErrorMessage);
@@ -137,66 +124,7 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var requirements = await this.verificationRequirementService.GetEffectiveValidationOptionsAsync(userId);
-        if (requirements is null)
-        {
-            this.logger.LogWarning("Rejecting user verification: Verification requirements not configured.");
-            return this.BadRequest(new { error = "Verification requirements not configured." });
-        }
-
-        var user = await this.userService.GetUserAsync(userId);
-        if (user is null)
-        {
-            this.logger.LogWarning($"Rejecting user verification: User not found. User id: {userId}");
-            return this.NotFound(new { error = "User not found." });
-        }
-
-        // Type check
-        if (requirements.RequireIdDocument &&
-            verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
-        {
-            this.logger.LogWarning($"Rejecting user verification: Verification type must be 'id_document'. Provided value: {verificationRequest.VerificationType}.");
-            return this.BadRequest(new { error = "Verification type must be 'IdDocument'." });
-        }
-
-        // ID Document check
-        var idValidation = verificationRequest.IdDocumentValidation;
-        if (requirements.RequireIdDocument)
-        {
-            if (idValidation is null || !idValidation.Enabled)
-            {
-                this.logger.LogWarning("Rejecting user verification: ID document validation must be enabled.");
-                return this.BadRequest(new { error = "ID document validation must be enabled." });
-            }
-
-            var validation = idValidation.ValidationResult;
-            if (validation is null ||
-                !validation.IdFormatValid ||
-                !validation.PhotoPresent ||
-                !idValidation.PhotoUploaded)
-            {
-                this.logger.LogWarning($"Rejecting user verification: ID document validation failed field checks. Provided values: Validation: {validation}, Id format valid : {validation?.IdFormatValid}, Photo present: {validation?.PhotoPresent}, Photo uploaded: {idValidation?.PhotoUploaded}");
-                return this.BadRequest(new { error = "ID document validation failed field checks." });
-            }
-        }
-
-        // Phone & Email check
-        var additional = verificationRequest.AdditionalVerification;
-
-        if (requirements.RequirePhoneVerification && (additional is null || !additional.PhoneVerification))
-        {
-            this.logger.LogWarning("Rejecting user verification: Phone verification is required.");
-            return this.BadRequest(new { error = "Phone verification is required." });
-        }
-
-        if (requirements.RequireEmailVerification && (additional is null || !additional.EmailVerification))
-        {
-            this.logger.LogWarning("Rejecting user verification: Email verification is required.");
-            return this.BadRequest(new { error = "Email verification is required." });
-        }
-
-        // Activate User
-        var response = await this.userService.ActivateUser(user, verificationRequest);
+        var response = await this.userService.ActivateUser(userId, verificationRequest);
         return this.Ok(response);
     }
 
@@ -223,53 +151,8 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var availableUsersResp = new List<UserAvailabilityResponse>();
-        var users = await this.userService.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
-        if (!users.Any())
-        {
-            this.logger.LogWarning("No user found!");
-            return this.NoContent();
-        }
-
-        var cacheMap = await this.redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
-        var trendMap = await this.eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
-        var availableUsers = users
-            .Where(u => cacheMap.ContainsKey(u.Id)
-                    && cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
-            .Select(u =>
-            {
-                var availability = cacheMap.ContainsKey(u.Id)
-                    ? cacheMap[u.Id]
-                    : null;
-
-                return new AvailableUsersDto
-                {
-                    UserId = u.Id,
-                    EloRating = u.Statistics?.CurrentElo,
-                    PeakElo = u.Statistics?.PeakElo,
-                    DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
-                    CurrentWorkload = availability?.CurrentWorkload,
-                    RecentPerformance = trendMap[u.Id],
-                    GamesPlayed = u.Statistics?.GamesPlayed,
-                    Role = u.Role,
-                    BypassQaComparison = u.Role == UserRoleType.Professional.ToDisplayName(),
-                    LastActive = u.Statistics?.LastCalculated,
-                };
-            })
-            .ToList();
-
-        if (!availableUsers.Any())
-        {
-            this.logger.LogWarning("No user available!");
-            return this.NoContent();
-        }
-
-        return this.Ok(new UserAvailabilityResponse
-        {
-            AvailableUsers = availableUsers,
-            TotalAvailable = availableUsers.Count,
-            QueryTimestamp = DateTime.UtcNow,
-        });
+        var resp = await this.userService.GetUserAvailabilitySummaryAsync(dialect, minElo, maxElo, maxWorkload, limit);
+        return this.Ok(resp);
     }
 
     /// <summary>
@@ -286,7 +169,7 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var availability = await this.redisService.GetAvailabilityAsync(userId);
+        var availability = await this.userService.GetAvailabilityAsync(userId);
         return this.Ok(availability == null ? "User availability Not Found" : availability);
     }
 
@@ -305,44 +188,8 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var ipAddress = this.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var userAgent = this.Request.Headers["User-Agent"].ToString() ?? "unknown";
-        var existingAvailability = await this.redisService.GetAvailabilityAsync(userId)
-                            ?? new UserAvailabilityRedisDto();
-
-        if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdate.Status, out UserAvailabilityType outcome))
-        {
-            this.logger.LogWarning($"Rejecting availability update: Invalid Status. Provided value: {availabilityUpdate.Status}");
-            return this.BadRequest("Invalid Status Provided.");
-        }
-
-        if (availabilityUpdate.MaxConcurrentJobs < 1)
-        {
-            this.logger.LogWarning("Rejecting availability update: MaxConcurrentJobs must be greater than 0. Provided value: {Value}", availabilityUpdate.MaxConcurrentJobs);
-            return this.BadRequest("Maximum concurrent job should be greater than 0");
-        }
-
-        if (availabilityUpdate != null)
-        {
-            existingAvailability.Status = availabilityUpdate.Status;
-            existingAvailability.MaxConcurrentJobs = availabilityUpdate.MaxConcurrentJobs;
-        }
-
-        existingAvailability.LastUpdate = DateTime.UtcNow;
-
-        // Asynchrounously write to redis and persis in DB.
-        var redisTask = this.redisService.SetAvailabilityAsync(userId, existingAvailability);
-        var auditTask = this.userService.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
-
-        await Task.WhenAll(redisTask, auditTask);
-
-        return this.Ok(new UserAvailabilityUpdateResponse
-        {
-            AvailabilityUpdated = "success",
-            CurrentStatus = existingAvailability.Status,
-            MaxConcurrentJobs = existingAvailability.MaxConcurrentJobs,
-            LastUpdated = existingAvailability.LastUpdate,
-        });
+        var resp = await this.userService.PatchAvailabilityAsync(userId, availabilityUpdate);
+        return this.Ok(resp);
     }
 
     /// <summary>
@@ -371,12 +218,6 @@ public class UsersController : ControllerBase
     [HttpGet("{userId}/elo-history")]
     public async Task<IActionResult> GetEloHistory([FromRoute] Guid userId)
     {
-        if (!this.ModelState.IsValid)
-        {
-            this.logger.LogWarning($"Rejecting elo history get: Request object not valid. ModelState: {this.ModelState}");
-            return this.BadRequest(this.ModelState);
-        }
-
         var profile = await this.eloService.GetEloHistoryAsync(userId);
         return this.Ok(profile);
     }
@@ -396,51 +237,8 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var availability = await this.redisService.GetAvailabilityAsync(userId);
-
-        if (availability == null || availability.Status != UserAvailabilityType.Available.ToDisplayName())
-        {
-            this.logger.LogWarning($"Rejecting job claim: User is currently unavailable for work. User Id: {userId}");
-            return this.BadRequest(new { error = "User is currently unavailable for work." });
-        }
-
-        if (availability.CurrentWorkload >= availability.MaxConcurrentJobs)
-        {
-            this.logger.LogWarning($"Rejecting job claim: User already has maximum concurrent jobs. CurrentWorkload: {availability.CurrentWorkload}, MaxConcurrentJobs: {availability.MaxConcurrentJobs}");
-            return this.BadRequest(new { error = "User already has maximum concurrent jobs." });
-        }
-
-        var tryLockJobClaim = await this.redisService.TryClaimJobAsync(claimJobRequest.JobId, userId);
-        if (!tryLockJobClaim)
-        {
-            this.logger.LogWarning($"Rejecting job claim:Job is already claimed by another user. Job id: {claimJobRequest.JobId}");
-            return this.BadRequest(new { error = "Job is already claimed by another user." });
-        }
-
-        this.logger.LogInformation($"Job: {claimJobRequest.JobId} successfully locked by user: {userId}.");
-
-        availability.CurrentWorkload++;
-        await this.redisService.AddUserClaimAsync(userId, claimJobRequest.JobId);
-        await this.redisService.SetAvailabilityAsync(userId, availability);
-        var claimId = Guid.NewGuid();
-        var response = new ClaimJobResponse
-        {
-            ClaimValidated = true,
-            UserEligible = true,
-            ClaimId = claimId,
-            UserAvailability = availability.Status,
-            CurrentWorkload = availability.CurrentWorkload,
-            MaxConcurrentJobs = availability.MaxConcurrentJobs,
-            CapacityReservedUntil = DateTime.UtcNow.AddMinutes(this.defaultBookoutInMinutes),
-        };
-
-        await this.userService.ClaimJobAsync(userId, claimId, claimJobRequest, response.CapacityReservedUntil);
-        this.logger.LogInformation($"Job: {claimJobRequest.JobId} successfully claimed by user: {userId}. Claim Id: {claimId}");
-
-        await this.redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
-        this.logger.LogInformation($"Job: {claimJobRequest.JobId} lock successfully released by user: {userId}.");
-
-        return this.Ok(response);
+        var resp = await this.userService.ClaimJobAsync(userId, claimJobRequest);
+        return this.Ok(resp);
     }
 
     /// <summary>
@@ -458,20 +256,8 @@ public class UsersController : ControllerBase
             return this.BadRequest(this.ModelState);
         }
 
-        var profile = await this.userService.ValidateTieBreakerClaim(userId, tiebreakerRequest);
-        if (profile.IsOriginalTranscriber)
-        {
-            this.logger.LogWarning("Rejecting tiebreaker claim: Users who participated in the original transcription cannot be tiebreakers");
-            return this.Forbid("Users who participated in the original transcription cannot be tiebreakers");
-        }
-
-        if (!profile.UserEloQualified)
-        {
-            this.logger.LogWarning("Rejecting tiebreaker claim: Users does not meet minimal elo requirement");
-            return this.Forbid("Users does not meet minimal elo requirement");
-        }
-
-        return this.Ok(profile);
+        var resp = await this.userService.ValidateTieBreakerClaim(userId, tiebreakerRequest);
+        return this.Ok(resp);
     }
 
     /// <summary>

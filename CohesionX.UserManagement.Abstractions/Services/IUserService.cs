@@ -3,6 +3,7 @@
 // </copyright>
 
 using CohesionX.UserManagement.Database.Abstractions.Entities;
+using Microsoft.AspNetCore.Mvc;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
@@ -22,12 +23,38 @@ public interface IUserService
     Task<UserRegisterResponse> RegisterUserAsync(UserRegisterRequest dto);
 
     /// <summary>
+    /// Gets available users.
+    /// </summary>
+    /// <param name="dialect"> optional dialect.</param>
+    /// <param name="minElo">optional min elo.</param>
+    /// <param name="maxElo">optional max elo.</param>
+    /// <param name="maxWorkload">optional maxworkload.</param>
+    /// <param name="limit">optional limit.</param>
+    /// <returns>user availability resp.</returns>
+    Task<List<UserAvailabilityResponse>> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
+
+    /// <summary>
+    /// Gets the user availability for a user.
+    /// </summary>
+    /// <param name="userId">The user's unique identifier.</param>
+    /// <returns>The user availability response.</returns>
+    Task<UserAvailabilityRedisDto?> GetAvailabilityAsync(Guid userId);
+
+    /// <summary>
+    /// Patches a user availability.
+    /// </summary>
+    /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="availabilityUpdateRequest"> request object.</param>
+    /// <returns>user availability response.</returns>
+    Task<UserAvailabilityUpdateResponse> PatchAvailabilityAsync(Guid userId, UserAvailabilityUpdateRequest availabilityUpdateRequest);
+
+    /// <summary>
     /// Activates a user after verification.
     /// </summary>
-    /// <param name="user">The user entity to activate.</param>
+    /// <param name="userId">The user entity to activate.</param>
     /// <param name="verificationDto">The verification request details.</param>
     /// <returns>The verification response.</returns>
-    Task<VerificationResponse> ActivateUser(User user, VerificationRequest verificationDto);
+    Task<VerificationResponse> ActivateUser(Guid userId, VerificationRequest verificationDto);
 
     /// <summary>
     /// Checks if the provided ID number matches the user's record.
@@ -97,11 +124,11 @@ public interface IUserService
     /// Claims a job for a user.
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="claimId">The claim identifier.</param>
     /// <param name="claimJobRequest">The job claim request details.</param>
-    /// <param name="bookouExpiresAt">The expiration time for the job claim.</param>
+    /// <param name="originalTranscribers"> Optional: original transcriber for the job. </param>
+    /// <param name="requiredMinElo"> Optional: required minimum elo for the job. </param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    Task ClaimJobAsync(Guid userId, Guid claimId, ClaimJobRequest claimJobRequest, DateTime bookouExpiresAt);
+    Task<ClaimJobResponse> ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, List<Guid>? originalTranscribers = null, int? requiredMinElo = null);
 
     /// <summary>
     /// Validates a tiebreaker claim for a user.
@@ -129,9 +156,8 @@ public interface IUserService
     /// <summary>
     /// Changes the password for a user.
     /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
     /// <param name="currentPassword"> User's current password. </param>
     /// <param name="newPassword"> User's intended new password. </param>
     /// <returns>he response containing the success/failure of the request.</returns>
-    Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
+    Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(string currentPassword, string newPassword);
 }

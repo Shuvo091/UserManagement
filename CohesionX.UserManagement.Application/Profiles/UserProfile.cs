@@ -5,6 +5,7 @@
 using AutoMapper;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using SharedLibrary.AppEnums;
+using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
 

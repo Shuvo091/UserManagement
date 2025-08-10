@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.AppEnums;
+using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;

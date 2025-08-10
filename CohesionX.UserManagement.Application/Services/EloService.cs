@@ -10,6 +10,7 @@ using CohesionX.UserManagement.Database.Abstractions.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedLibrary.AppEnums;
+using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
