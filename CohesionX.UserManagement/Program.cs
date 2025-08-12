@@ -2,8 +2,8 @@ using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Application.Extensions;
 using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
-using CohesionX.UserManagement.Database;
 using CohesionX.UserManagement.Extensions;
+using CohesionX.UserManagement.Initializers;
 using Polly;
 using Polly.Extensions.Http;
 using Prometheus;
@@ -48,6 +48,7 @@ services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 // 5. DB + Auth + Policies
 services.AddAppDbContext(configuration);
+services.AddSeedInitializerServices(configuration);
 services.AddJwtAuthentication(configuration);
 services.AddAuthorization();
 
@@ -63,7 +64,7 @@ services.RegisterOpenTelemetry(configuration);
 var app = builder.Build();
 
 // Swagger UI with OAuth2 (in dev/docker only)
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUIWithJwt();
@@ -81,6 +82,5 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.ApplyDatabaseMigrations<AppDbContext>();
 
 app.Run();

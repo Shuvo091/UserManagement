@@ -1,0 +1,26 @@
+[
+    {
+        "Id": "ef7ca80f-512e-4aef-955b-62ec5bb120de",
+        "FirstName": "System",
+        "LastName": "Administrator",
+        "Email": "admin@example.com",
+        "Password": "7^l@=2N5.y<9",
+        "Phone": "",
+        "IdNumber": null,
+        "Status": "Active",
+        "Role": "Admin",
+        "IsProfessional": false
+    },
+    {
+        "Id": "74ba19cc-7188-42e8-aa43-0587503e8f80",
+        "FirstName": "Quality",
+        "LastName": "Assurance",
+        "Email": "qa@example.com",
+        "Password": "0fasT1|<(j2$",
+        "Phone": "",
+        "IdNumber": null,
+        "Status": "Active",
+        "Role": "QA",
+        "IsProfessional": false
+    }
+]

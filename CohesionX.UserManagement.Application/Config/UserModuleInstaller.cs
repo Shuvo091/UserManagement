@@ -38,6 +38,8 @@ public static class UserModuleInstaller
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddScoped<AdminAndQaUserSeederService>();
         return services;
     }
 }
