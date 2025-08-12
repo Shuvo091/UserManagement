@@ -4,6 +4,8 @@ using CohesionX.UserManagement.Application.Services;
 using CohesionX.UserManagement.Config;
 using CohesionX.UserManagement.Database;
 using CohesionX.UserManagement.Extensions;
+using Polly;
+using Polly.Extensions.Http;
 using Prometheus;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 using SharedLibrary.Common.ExceptionMiddlewares;
@@ -13,6 +15,15 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var configuration = builder.Configuration;
 var host = builder.Host;
+var retryPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+var timeoutPolicy = Policy.TimeoutAsync<HttpResponseMessage>(30);
+
+var circuitBreakerPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .CircuitBreakerAsync(6, TimeSpan.FromSeconds(30));
 
 // 1. Controllers & Swagger
 services.AddControllers();
@@ -29,7 +40,10 @@ services.AddHttpContextAccessor();
 services.AddRedis(configuration);
 services.AddRedisCache();
 services.RegisterUserModule();
-services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>();
+services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>()
+            .AddPolicyHandler(retryPolicy)
+            .AddPolicyHandler(timeoutPolicy)
+            .AddPolicyHandler(circuitBreakerPolicy);
 services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 // 5. DB + Auth + Policies

@@ -424,18 +424,46 @@ public class UserService : IUserService
         var claimId = Guid.NewGuid();
         var availabilityCache = await this.redisService.GetAvailabilityAsync(userId);
         var userEloCache = await this.redisService.GetUserEloAsync(userId);
-
-        if (availabilityCache == null)
+        var userDb = new User();
+        var userjobClaims = await this.redisService.GetUserClaimsAsync(userId);
+        if (userjobClaims.Contains(claimJobRequest.JobId))
         {
-            // TODO: get from db and save cache
+            this.logger.LogWarning($"User: {userId} already claimed the job: {claimJobRequest.JobId}");
+            throw new KeyNotFoundException("User already claimed the job:");
         }
 
         if (userEloCache == null)
         {
-            // TODO: get from db and save cache
+            userDb = await this.repo.GetUserByIdAsync(userId, false, false, u => u.Statistics!, u => u.EloHistories, u => u.JobCompletions);
+            if (userDb == null)
+            {
+                this.logger.LogWarning($"User with ID {userId} is not found.");
+                throw new KeyNotFoundException("User not found");
+            }
         }
 
-        if (availabilityCache!.Status != UserAvailabilityType.Available.ToDisplayName())
+        // Elo cache miss
+        if (userEloCache == null)
+        {
+            if (userDb != null && userDb.Statistics != null)
+            {
+                var userStats = userDb.Statistics;
+                var elohistories = userDb.EloHistories.ToList();
+                var lastJobCompleted = userDb.JobCompletions.MaxBy(jc => jc.CompletedAt)?.CompletedAt;
+                userEloCache = new UserEloRedisDto
+                {
+                    CurrentElo = userStats.CurrentElo,
+                    PeakElo = userStats.PeakElo,
+                    GamesPlayed = userStats.GamesPlayed,
+                    RecentTrend = this.eloService.GetEloTrend(elohistories, 7),
+                    LastJobCompleted = lastJobCompleted ?? default,
+                };
+
+                await this.redisService.SetUserEloAsync(userId, userEloCache);
+            }
+        }
+
+        if (availabilityCache == null || availabilityCache.Status != UserAvailabilityType.Available.ToDisplayName())
         {
             this.logger.LogWarning($"Rejecting tiebreaker claim: User is currently unavailable for work. User Id: {userId}");
             throw new ArgumentException("Rejecting tiebreaker claim: User is currently unavailable for work.");
@@ -752,7 +780,6 @@ public class UserService : IUserService
             return availableUsersResp;
         }
 
-        // TODO: Get from db if cache is not found.
         var cacheMap = await this.redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
         var trendMap = await this.eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
         var availableUsers = users
