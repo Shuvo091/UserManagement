@@ -429,7 +429,7 @@ public class UserService : IUserService
         if (userjobClaims.Contains(claimJobRequest.JobId))
         {
             this.logger.LogWarning($"User: {userId} already claimed the job: {claimJobRequest.JobId}");
-            throw new KeyNotFoundException("User already claimed the job:");
+            throw new InvalidOperationException("User already claimed the job:");
         }
 
         if (userEloCache == null)
@@ -625,11 +625,6 @@ public class UserService : IUserService
         }
 
         var verificationRecord = this.GetLastProfessionalVerificationRecord(user);
-        if (verificationRecord == null)
-        {
-            this.logger.LogWarning($"Getting professional status failed because User with ID {userId}'s verification record not found.");
-            throw new KeyNotFoundException($"User with ID {userId}'s verification record not found.");
-        }
 
         var response = new GetProfessionalStatusResponse
         {
@@ -770,9 +765,9 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc />
-    public async Task<List<UserAvailabilityResponse>> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
+    public async Task<UserAvailabilityResponse> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
     {
-        var availableUsersResp = new List<UserAvailabilityResponse>();
+        var availableUsersResp = new UserAvailabilityResponse();
         var users = await this.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
         if (!users.Any())
         {
@@ -782,7 +777,7 @@ public class UserService : IUserService
 
         var cacheMap = await this.redisService.GetBulkAvailabilityAsync(users.Select(u => u.Id));
         var trendMap = await this.eloService.BulkEloTrendAsync(users.Select(u => u.Id).ToList(), 7);
-        var availableUsers = users
+        availableUsersResp.AvailableUsers = users
             .Where(u => cacheMap.ContainsKey(u.Id)
                     && cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
             .Select(u =>
@@ -806,7 +801,8 @@ public class UserService : IUserService
                 };
             })
             .ToList();
-
+        availableUsersResp.TotalAvailable = availableUsersResp.AvailableUsers.Count;
+        availableUsersResp.QueryTimestamp = DateTime.UtcNow;
         return availableUsersResp;
     }
 

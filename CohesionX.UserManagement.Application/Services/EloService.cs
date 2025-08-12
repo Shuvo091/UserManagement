@@ -144,6 +144,7 @@ public class EloService : IEloService
             userStats.CurrentElo = newElo;
             userStats.PeakElo = Math.Max(userStats.PeakElo, newElo);
             userStats.GamesPlayed++;
+            userStats.TotalJobs++;
             userStats.LastCalculated = eloHistoryRecord.ChangedAt;
             userStats.UpdatedAt = utcNow;
 
@@ -439,7 +440,8 @@ public class EloService : IEloService
             var stats = userStatsDb.FirstOrDefault(u => u.UserId == change.TranscriberId)
                 ?? throw new KeyNotFoundException($"User stats not found for {change.TranscriberId}");
 
-            var eloChangeAdjusted = change.EloChange;
+            var bonus = change.TiebreakerBonus?.BonusAmount ?? 0;
+            var eloChangeAdjusted = change.EloChange + bonus;
 
             var oldEloVal = stats.CurrentElo;
             var newElo = oldEloVal + eloChangeAdjusted;
@@ -447,6 +449,7 @@ public class EloService : IEloService
             stats.CurrentElo = newElo;
             stats.PeakElo = Math.Max(stats.PeakElo, newElo);
             stats.GamesPlayed++;
+            stats.TotalJobs++;
             stats.LastCalculated = utcNow;
             stats.UpdatedAt = utcNow;
 

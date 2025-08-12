@@ -45,6 +45,7 @@ public class WorkflowEngineClient : IWorkflowEngineClient
     {
         if (request is null)
         {
+            this.logger.LogError("Failed to notify elo update. request is empty.");
             throw new ArgumentNullException(nameof(request));
         }
 
@@ -60,8 +61,24 @@ public class WorkflowEngineClient : IWorkflowEngineClient
 
             return await response.Content.ReadFromJsonAsync<EloUpdateNotificationResponse>();
         }
-        catch (Exception ex) when (ex is HttpRequestException or NotSupportedException or JsonException)
+        catch (Polly.CircuitBreaker.BrokenCircuitException ex)
         {
+            this.logger.LogError(ex, "Workflow engine circuit is open. Skipping Elo update notification.");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            this.logger.LogError(ex, "Failed to notify elo update. HTTP request error.");
+            return null;
+        }
+        catch (NotSupportedException ex)
+        {
+            this.logger.LogError(ex, "Failed to process elo update notification response.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogError(ex, "Failed to notify workflow engine.");
             return null;
         }
     }

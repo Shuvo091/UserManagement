@@ -31,7 +31,7 @@ public interface IUserService
     /// <param name="maxWorkload">optional maxworkload.</param>
     /// <param name="limit">optional limit.</param>
     /// <returns>user availability resp.</returns>
-    Task<List<UserAvailabilityResponse>> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
+    Task<UserAvailabilityResponse> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit);
 
     /// <summary>
     /// Gets the user availability for a user.
