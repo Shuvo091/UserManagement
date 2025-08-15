@@ -25,6 +25,28 @@ services:
       timeout: 5s
       retries: 3
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
   cohesionx.usermanagement:
     image: ${DOCKER_REGISTRY-}cohesionxusermanagement
     build:
@@ -35,6 +57,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
     ports:
       - "5090:5090"
       - "5091:5091"
@@ -93,6 +117,10 @@ services:
       ValidationOptions__ValidationRules__photo: "presence_check_only"
       ValidationOptions__ValidationRules__note: "V2_will_add_dha_verification"
       ValidationOptions__Reason: "PII_compliance_SA_POPIA_with_basic_validation"
+
+      #Kafka Options
+      KafkaOptions__BootstrapServers: "kafka:9092"
+      KafkaOptions__GroupId: "user-management-service"
 
       # ASP.NET Core Defaults
       AllowedHosts: "*"

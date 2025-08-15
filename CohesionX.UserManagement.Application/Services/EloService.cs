@@ -3,8 +3,10 @@
 // </copyright>
 
 using AutoMapper;
+using CloudNative.CloudEvents;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Application.Constants;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Repositories;
 using Microsoft.Extensions.Logging;
@@ -14,6 +16,7 @@ using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
+using SharedLibrary.Kafka.Services.Interfaces;
 using StackExchange.Redis;
 
 namespace CohesionX.UserManagement.Application.Services;
@@ -30,6 +33,7 @@ public class EloService : IEloService
     private readonly IMapper mapper;
     private readonly IUnitOfWork unitOfWork;
     private readonly IRedisService redisService;
+    private readonly IEventBus eventBus;
     private readonly int eloKFactorNew;
     private readonly int eloKFactorEstablished;
     private readonly int eloKFactorExpert;
@@ -43,6 +47,7 @@ public class EloService : IEloService
     /// <param name="userStatRepo">Repository for user statistics data access.</param>
     /// <param name="unitOfWork">Unit of Work pattern implementation to coordinate repository operations and transaction management.</param>
     /// <param name="redisService">Service for interacting with Redis cache and data storage.</param>
+    /// <param name="eventBus">Service for publishing in kafka.</param>
     /// <param name="mapper">AutoMapper instance used for mapping between domain entities and DTOs.</param>
     /// <param name="appContantOptions"> Options for app contants. </param>
     /// <param name="workflowEngineClient">Client for communicating with the external workflow engine API.</param>
@@ -53,6 +58,7 @@ public class EloService : IEloService
         IUserStatisticsRepository userStatRepo,
         IUnitOfWork unitOfWork,
         IRedisService redisService,
+        IEventBus eventBus,
         IMapper mapper,
         IOptions<AppConstantsOptions> appContantOptions,
         IWorkflowEngineClient workflowEngineClient,
@@ -62,6 +68,7 @@ public class EloService : IEloService
         this.userRepo = userRepo;
         this.unitOfWork = unitOfWork;
         this.redisService = redisService;
+        this.eventBus = eventBus;
         this.userStatRepo = userStatRepo;
         this.mapper = mapper;
         this.eloKFactorNew = appContantOptions.Value.EloKFactorNew;
@@ -177,6 +184,26 @@ public class EloService : IEloService
         await this.unitOfWork.EloHistories.AddRangeAsync(eloHistoryRecords);
         await this.unitOfWork.JobCompletions.AddRangeAsync(jobCompletions);
         await this.unitOfWork.SaveChangesAsync();
+
+        var cloudEvent = new CloudEvent
+        {
+            Id = Guid.NewGuid().ToString(),
+            Source = new Uri($"{TopicConstant.UserEloUpdated}:{request.WorkflowRequestId}"),
+            Type = TopicConstant.UserEloUpdated,
+            Time = DateTimeOffset.UtcNow,
+            DataContentType = "application/json",
+            Data = new { RequestId = request.WorkflowRequestId, Message = "Users Elo Updated." },
+        };
+        try
+        {
+            await this.eventBus.PublishAsync(cloudEvent, TopicConstant.UserEloUpdated);
+            this.logger.LogInformation($"{request.WorkflowRequestId} CloudEvent publish Successful.");
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogWarning(ex, $"{request.WorkflowRequestId} CloudEvent publish falied.");
+        }
+
         var notifyEloUpdateReq = new EloUpdateNotificationRequest
         {
             UpdateId = request.WorkflowRequestId!,

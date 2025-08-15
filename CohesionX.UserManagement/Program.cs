@@ -10,6 +10,7 @@ using Prometheus;
 using SharedLibrary.Cache.ServiceCollectionExtensions;
 using SharedLibrary.Common.ExceptionMiddlewares;
 using SharedLibrary.Common.Extensions;
+using SharedLibrary.Kafka.ServiceCollectionExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -39,6 +40,7 @@ services.AddHttpContextAccessor();
 // 4. Custom modules
 services.AddRedis(configuration);
 services.AddRedisCache();
+services.AddKafka(configuration);
 services.RegisterUserModule();
 services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>()
             .AddPolicyHandler(retryPolicy)
