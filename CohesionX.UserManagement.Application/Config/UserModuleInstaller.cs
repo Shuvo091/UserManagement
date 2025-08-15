@@ -33,7 +33,6 @@ public static class UserModuleInstaller
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEloService, EloService>();
         services.AddScoped<IRedisService, RedisService>();
-        services.AddScoped<IUserStaticticsService, UserStatisticsService>();
         services.AddScoped<IVerificationRequirementService, VerificationRequirementService>();
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
