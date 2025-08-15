@@ -3,6 +3,7 @@
 // </copyright>
 
 using AutoMapper;
+using Azure.Core;
 using CloudNative.CloudEvents;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
@@ -18,6 +19,7 @@ using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
 using SharedLibrary.Kafka.Services.Interfaces;
 using StackExchange.Redis;
+using System;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -217,7 +219,15 @@ public class EloService : IEloService
             },
         };
 
-        await this.workflowEngineClient.NotifyEloUpdatedAsync(notifyEloUpdateReq);
+        try
+        {
+            await this.workflowEngineClient.NotifyEloUpdatedAsync(notifyEloUpdateReq);
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogError(ex, $"Failed to notify workflow engine for elo update. WorkflowRequestId: {request.WorkflowRequestId}");
+        }
+
         return eloUpdateResp;
     }
 
@@ -569,7 +579,14 @@ public class EloService : IEloService
             },
         };
 
-        await this.workflowEngineClient.NotifyEloUpdatedAsync(notifyReq);
+        try
+        {
+            await this.workflowEngineClient.NotifyEloUpdatedAsync(notifyReq);
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogError(ex, $"Failed to notify workflow engine for elo update. WorkflowRequestId: {twuReq.WorkflowRequestId}");
+        }
 
         return new ThreeWayEloUpdateResponse
         {

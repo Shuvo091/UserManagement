@@ -43,43 +43,13 @@ public class WorkflowEngineClient : IWorkflowEngineClient
     /// <returns>Task of ELoUpdateNotification.</returns>
     public async Task<EloUpdateNotificationResponse?> NotifyEloUpdatedAsync(EloUpdateNotificationRequest request)
     {
-        if (request is null)
-        {
-            this.logger.LogError("Failed to notify elo update. request is empty.");
-            throw new ArgumentNullException(nameof(request));
-        }
+        using var response = await this.httpClient.PostAsJsonAsync(this.eloUpdateNotifyUri, request);
 
-        try
-        {
-            using var response = await this.httpClient.PostAsJsonAsync(this.eloUpdateNotifyUri, request);
+        response.EnsureSuccessStatusCode();
 
-            if (!response.IsSuccessStatusCode)
-            {
-                this.logger.LogWarning($"Failed to notify elo update to workflow engine. Response: {response}");
-                return null;
-            }
+        var responseStream = await response.Content.ReadAsStreamAsync();
+        var result = await JsonSerializer.DeserializeAsync<EloUpdateNotificationResponse>(responseStream);
 
-            return await response.Content.ReadFromJsonAsync<EloUpdateNotificationResponse>();
-        }
-        catch (Polly.CircuitBreaker.BrokenCircuitException ex)
-        {
-            this.logger.LogError(ex, "Workflow engine circuit is open. Skipping Elo update notification.");
-            return null;
-        }
-        catch (HttpRequestException ex)
-        {
-            this.logger.LogError(ex, "Failed to notify elo update. HTTP request error.");
-            return null;
-        }
-        catch (NotSupportedException ex)
-        {
-            this.logger.LogError(ex, "Failed to process elo update notification response.");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            this.logger.LogError(ex, "Failed to notify workflow engine.");
-            return null;
-        }
+        return result!;
     }
 }

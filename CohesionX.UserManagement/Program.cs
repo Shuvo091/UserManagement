@@ -43,10 +43,11 @@ services.AddRedisCache();
 services.AddKafka(configuration);
 services.RegisterUserModule();
 services.AddHttpClient<IWorkflowEngineClient, WorkflowEngineClient>()
+            .AddHttpMessageHandler<WorkflowEngineAuthHandler>()
             .AddPolicyHandler(retryPolicy)
             .AddPolicyHandler(timeoutPolicy)
             .AddPolicyHandler(circuitBreakerPolicy);
-services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+services.AddTransient<WorkflowEngineAuthHandler>();
 
 // 5. DB + Auth + Policies
 services.AddAppDbContext(configuration);
