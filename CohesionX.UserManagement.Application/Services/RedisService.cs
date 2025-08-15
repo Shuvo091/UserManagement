@@ -47,10 +47,11 @@ public class RedisService : IRedisService
         var json = await this.cache.GetAsync<string>(this.GetAvailabilityKey(userId));
         if (string.IsNullOrWhiteSpace(json))
         {
-            this.logger.LogInformation($"user {userId} not available in cache.");
+            this.logger.LogInformation("User availability not found in cache. UserId: {UserId}", userId);
             return null;
         }
 
+        this.logger.LogDebug("User availability retrieved from cache. UserId: {UserId}", userId);
         return JsonSerializer.Deserialize<UserAvailabilityRedisDto>(json);
     }
 
@@ -59,6 +60,7 @@ public class RedisService : IRedisService
     {
         var json = JsonSerializer.Serialize(dto);
         await this.cache.SetAsync(this.GetAvailabilityKey(userId), json, this.availabilityTtl);
+        this.logger.LogInformation("User availability set in cache. UserId: {UserId}, TTLMinutes: {TTL}", userId, this.availabilityTtl.TotalMinutes);
     }
 
     /// <inheritdoc />
@@ -68,11 +70,12 @@ public class RedisService : IRedisService
         var existing = await this.cache.GetAsync<string>(key);
         if (!string.IsNullOrEmpty(existing))
         {
-            this.logger.LogInformation($"Job {jobId} already claimed.");
+            this.logger.LogInformation("Job already claimed. JobId: {JobId}, ExistingClaim: {Existing}", jobId, existing);
             return false;
         }
 
         await this.cache.SetAsync(key, $"{userId}_claiming_{jobId}", this.jobClaimLockTtl);
+        this.logger.LogInformation("Job claim set. JobId: {JobId}, UserId: {UserId}, TTLMinutes: {TTL}", jobId, userId, this.jobClaimLockTtl.TotalMinutes);
         return true;
     }
 
@@ -80,6 +83,7 @@ public class RedisService : IRedisService
     public async Task ReleaseJobClaimAsync(string jobId)
     {
         await this.cache.RemoveAsync(this.GetJobClaimLockKey(jobId));
+        this.logger.LogInformation("Job claim released. JobId: {JobId}", jobId);
     }
 
     /// <inheritdoc />
@@ -88,11 +92,12 @@ public class RedisService : IRedisService
         var json = await this.cache.GetAsync<string>(this.GetUserClaimsKey(userId));
         if (string.IsNullOrWhiteSpace(json))
         {
-            this.logger.LogInformation($"user {userId}'s claim not found.");
+            this.logger.LogInformation("No user claims found in cache. UserId: {UserId}", userId);
             return new List<string>();
         }
 
         var jobs = JsonSerializer.Deserialize<List<string>>(json);
+        this.logger.LogDebug("User claims retrieved from cache. UserId: {UserId}, ClaimsCount: {Count}", userId, jobs?.Count ?? 0);
         return jobs ?? new List<string>();
     }
 
@@ -108,6 +113,7 @@ public class RedisService : IRedisService
 
         var json = JsonSerializer.Serialize(existing);
         await this.cache.SetAsync(key, json, this.userClaimsTtl);
+        this.logger.LogInformation("User claim added to cache. UserId: {UserId}, JobId: {JobId}, TotalClaims: {Count}, TTLMinutes: {TTL}", userId, jobId, existing.Count, this.userClaimsTtl.TotalMinutes);
     }
 
     /// <inheritdoc />
@@ -120,6 +126,11 @@ public class RedisService : IRedisService
             existing.Remove(jobId);
             var json = JsonSerializer.Serialize(existing);
             await this.cache.SetAsync(key, json, this.userClaimsTtl);
+            this.logger.LogInformation("User claim removed from cache. UserId: {UserId}, JobId: {JobId}, RemainingClaims: {Count}, TTLMinutes: {TTL}", userId, jobId, existing.Count, this.userClaimsTtl.TotalMinutes);
+        }
+        else
+        {
+            this.logger.LogInformation("User claim not found for removal. UserId: {UserId}, JobId: {JobId}", userId, jobId);
         }
     }
 
@@ -127,7 +138,15 @@ public class RedisService : IRedisService
     public async Task<UserEloRedisDto?> GetUserEloAsync(Guid userId)
     {
         var json = await this.cache.GetAsync<string>(this.GetUserEloKey(userId));
-        return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<UserEloRedisDto>(json);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            this.logger.LogInformation("User Elo not found in cache. UserId: {UserId}", userId);
+            return null;
+        }
+
+        var elo = JsonSerializer.Deserialize<UserEloRedisDto>(json);
+        this.logger.LogDebug("User Elo retrieved from cache. UserId: {UserId}, CurrentElo: {CurrentElo}", userId, elo?.CurrentElo);
+        return elo;
     }
 
     /// <inheritdoc />
@@ -135,6 +154,7 @@ public class RedisService : IRedisService
     {
         var json = JsonSerializer.Serialize(dto);
         await this.cache.SetAsync(this.GetUserEloKey(userId), json, this.userEloTtl);
+        this.logger.LogInformation("User Elo set in cache. UserId: {UserId}, CurrentElo: {CurrentElo}, PeakElo: {PeakElo}, GamesPlayed: {GamesPlayed}, TTLMinutes: {TTL}", userId, dto.CurrentElo, dto.PeakElo, dto.GamesPlayed, this.userEloTtl.TotalMinutes);
     }
 
     /// <inheritdoc />
@@ -154,7 +174,6 @@ public class RedisService : IRedisService
         {
             var userId = idList[i];
 
-            // Availability
             var availabilityJson = availabilityTasks[i].Result;
             if (!string.IsNullOrWhiteSpace(availabilityJson))
             {
@@ -166,34 +185,15 @@ public class RedisService : IRedisService
             }
         }
 
+        this.logger.LogInformation("Bulk availability fetched from cache. UserCount: {Count}, RetrievedCount: {RetrievedCount}", idList.Count, availabilityMap.Count);
         return availabilityMap;
     }
 
-    /// <summary>
-    /// Gets the cache key for user availability.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The cache key string.</returns>
     private string GetAvailabilityKey(Guid userId) => $"user:availability:{userId}";
 
-    /// <summary>
-    /// Gets the cache key for job claim lock.
-    /// </summary>
-    /// <param name="jobId">The job's unique identifier.</param>
-    /// <returns>The cache key string.</returns>
     private string GetJobClaimLockKey(string jobId) => $"job:claim:lock:{jobId}";
 
-    /// <summary>
-    /// Gets the cache key for user claims.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The cache key string.</returns>
     private string GetUserClaimsKey(Guid userId) => $"user:claims:{userId}";
 
-    /// <summary>
-    /// Gets the cache key for user Elo data.
-    /// </summary>
-    /// <param name="userId">The user's unique identifier.</param>
-    /// <returns>The cache key string.</returns>
     private string GetUserEloKey(Guid userId) => $"user:elo:{userId}";
 }

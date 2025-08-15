@@ -8,6 +8,7 @@ using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 /// <summary>
@@ -17,16 +18,19 @@ public class VerificationRequirementService : IVerificationRequirementService
 {
     private readonly IVerificationRequirementRepository repo;
     private readonly IOptions<ValidationOptions> validationOptions;
+    private readonly ILogger<VerificationRequirementService> logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerificationRequirementService"/> class.
     /// </summary>
     /// <param name="validationOptions">Validation configuration used to validate user verification.</param>
+    /// <param name="logger">logger for VerificationRequirementService.</param>
     /// <param name="repo">The repository for verification requirements.</param>
-    public VerificationRequirementService(IVerificationRequirementRepository repo, IOptions<ValidationOptions> validationOptions)
+    public VerificationRequirementService(IVerificationRequirementRepository repo, IOptions<ValidationOptions> validationOptions, ILogger<VerificationRequirementService> logger)
     {
         this.repo = repo;
         this.validationOptions = validationOptions;
+        this.logger = logger;
     }
 
     /// <summary>
@@ -37,10 +41,17 @@ public class VerificationRequirementService : IVerificationRequirementService
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task<ValidationOptions> GetEffectiveValidationOptionsAsync(Guid userId)
     {
+        this.logger.LogInformation("Fetching effective verification options for user {UserId}", userId);
+
         var requirement = await this.repo.GetVerificationRequirement(userId);
 
         if (requirement != null)
         {
+            this.logger.LogInformation(
+                "User-specific verification requirement found for user {UserId}: {@Requirement}",
+                userId,
+                requirement);
+
             return new ValidationOptions
             {
                 RequireIdDocument = requirement.RequireIdDocument,
@@ -53,6 +64,7 @@ public class VerificationRequirementService : IVerificationRequirementService
             };
         }
 
+        this.logger.LogInformation("No user-specific requirement found for user {UserId}, using default validation options", userId);
         return this.validationOptions.Value;
     }
 

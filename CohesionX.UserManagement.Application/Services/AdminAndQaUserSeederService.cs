@@ -41,16 +41,19 @@ public class AdminAndQaUserSeederService
             throw new ArgumentException("Admin and QA user seeder file path cannot be null or empty.", nameof(configFilePath));
         }
 
+        this.logger.LogInformation("Starting admin and QA user seeding from file: {ConfigFilePath}", configFilePath);
+
         var configJson = await File.ReadAllTextAsync(configFilePath);
         var users = JsonSerializer.Deserialize<List<UserModel>>(configJson);
 
         if (users == null)
         {
-            this.logger.LogError("Admin and QA user seeder file path cannot parsed.");
+            this.logger.LogError("Failed to parse admin and QA user seeder file: {ConfigFilePath}", configFilePath);
             throw new ArgumentException("Admin and QA user seeder file path cannot be parsed.", nameof(configFilePath));
         }
 
         var dtNow = DateTime.UtcNow;
+
         foreach (var user in users)
         {
             var userDb = await this.userRepository.GetUserByIdAsync(user.Id, true, false, u => u.Statistics!);
@@ -82,7 +85,9 @@ public class AdminAndQaUserSeederService
                         UpdatedAt = dtNow,
                     },
                 };
+
                 await this.userRepository.AddAsync(userToBeSeeded);
+                this.logger.LogInformation("Added new user: {@User}", new { user.Id, user.Email, user.Role, user.Status });
             }
             else
             {
@@ -97,9 +102,12 @@ public class AdminAndQaUserSeederService
                 userDb.Role = user.Role;
                 userDb.IsProfessional = user.IsProfessional;
                 userDb.UpdatedAt = dtNow;
+
+                this.logger.LogInformation("Updated existing user: {@User}", new { user.Id, user.Email, user.Role, user.Status });
             }
         }
 
         await this.userRepository.SaveChangesAsync();
+        this.logger.LogInformation("Completed admin and QA user seeding from file: {ConfigFilePath}", configFilePath);
     }
 }

@@ -101,12 +101,7 @@ public class UsersController : ControllerBase
         }
 
         var resp = await this.userService.ChangePasswordAsync(request.CurrentPassword, request.NewPassword);
-        if (!resp.Success)
-        {
-            return this.BadRequest(resp.ErrorMessage);
-        }
-
-        return this.Ok("Password changed successfully");
+        return this.Ok(resp);
     }
 
     /// <summary>
@@ -145,12 +140,6 @@ public class UsersController : ControllerBase
         [FromQuery] int? maxWorkload,
         [FromQuery] int? limit)
     {
-        if (!this.ModelState.IsValid)
-        {
-            this.logger.LogWarning($"Rejecting available users check: Request object not valid. ModelState: {this.ModelState}");
-            return this.BadRequest(this.ModelState);
-        }
-
         var resp = await this.userService.GetUserAvailabilitySummaryAsync(dialect, minElo, maxElo, maxWorkload, limit);
         return this.Ok(resp);
     }
@@ -163,12 +152,6 @@ public class UsersController : ControllerBase
     [HttpGet("{userId}/availability")]
     public async Task<IActionResult> GetAvailability([FromRoute] Guid userId)
     {
-        if (!this.ModelState.IsValid)
-        {
-            this.logger.LogWarning($"Rejecting availability check: Request object not valid. ModelState: {this.ModelState}");
-            return this.BadRequest(this.ModelState);
-        }
-
         var availability = await this.userService.GetAvailabilityAsync(userId);
         return this.Ok(availability == null ? "User availability Not Found" : availability);
     }
@@ -200,12 +183,6 @@ public class UsersController : ControllerBase
     [HttpGet("{userId}/profile")]
     public async Task<IActionResult> GetProfile([FromRoute] Guid userId)
     {
-        if (!this.ModelState.IsValid)
-        {
-            this.logger.LogWarning($"Rejecting profile get: Request object not valid. ModelState: {this.ModelState}");
-            return this.BadRequest(this.ModelState);
-        }
-
         var profile = await this.userService.GetProfileAsync(userId);
         return this.Ok(profile);
     }
