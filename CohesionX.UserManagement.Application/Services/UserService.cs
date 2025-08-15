@@ -105,7 +105,6 @@ public class UserService : IUserService
             throw new ArgumentException("Consent to data processing needed!");
         }
 
-        // Validate required fields
         if (string.IsNullOrWhiteSpace(dto.FirstName) ||
             string.IsNullOrWhiteSpace(dto.LastName) ||
             string.IsNullOrWhiteSpace(dto.Email) ||
@@ -115,7 +114,6 @@ public class UserService : IUserService
             throw new ArgumentException("All required fields must be provided");
         }
 
-        // Validate password strength
         var passwordError = this.ValidatePassword(dto.Password);
         if (passwordError != null)
         {
@@ -123,21 +121,18 @@ public class UserService : IUserService
             throw new ArgumentException(passwordError);
         }
 
-        // Validate South African ID if provided
         if (!this.ValidateSouthAfricanId(dto.IdNumber))
         {
             this.logger.LogWarning("Registration failed due to invalid South African ID. Email: {Email}, IdNumber: {IdNumber}", dto.Email, dto.IdNumber);
             throw new ArgumentException("Invalid South African ID number");
         }
 
-        // Check if email already exists
         if (await this.repo.EmailExistsAsync(dto.Email))
         {
             this.logger.LogWarning("Registration failed: Email already exists. Email: {Email}", dto.Email);
             throw new ArgumentException("Email already registered");
         }
 
-        // Create user entity
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -155,7 +150,6 @@ public class UserService : IUserService
         };
         user.PasswordHash = PasswordHasher.Hash(dto.Password);
 
-        // Add dialect preferences
         if (dto.DialectPreferences != null && dto.DialectPreferences.Any())
         {
             foreach (var dialect in dto.DialectPreferences)
@@ -229,7 +223,7 @@ public class UserService : IUserService
 
         this.logger.LogInformation("User profile retrieved. UserId: {UserId}, CurrentElo: {CurrentElo}, TotalJobs: {TotalJobs}, EligibleForPro: {Eligible}", userId, currentElo, totalJobs, eligible);
 
-        var dto = new UserProfileResponse
+        return new UserProfileResponse
         {
             FirstName = user.FirstName,
             LastName = user.LastName,
@@ -269,8 +263,6 @@ public class UserService : IUserService
                 PreferredJobTypes = new (),
             },
         };
-
-        return dto;
     }
 
     /// <inheritdoc/>
@@ -290,6 +282,12 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<User> GetUserByEmailAsync(string email)
     {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            this.logger.LogWarning("User retrieval failed: Email cannot be null or empty.");
+            throw new ArgumentException("Email cannot be null or empty.", nameof(email));
+        }
+
         var user = await this.repo.GetUserByEmailAsync(email);
         if (user == null)
         {
@@ -305,7 +303,15 @@ public class UserService : IUserService
     public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
     {
         var users = await this.repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
-        this.logger.LogInformation("Filtered users retrieved. Count: {Count}, Filter: {{Dialect: {Dialect}, MinElo: {MinElo}, MaxElo: {MaxElo}, MaxWorkload: {MaxWorkload}, Limit: {Limit}}}", users.Count, dialect, minElo, maxElo, maxWorkload, limit);
+
+        this.logger.LogInformation(
+            "Filtered users retrieved. Count: {Count}, Filter: {{Dialect: {Dialect}, MinElo: {MinElo}, MaxElo: {MaxElo}, MaxWorkload: {MaxWorkload}, Limit: {Limit}}}",
+            users.Count,
+            dialect,
+            minElo,
+            maxElo,
+            maxWorkload,
+            limit);
 
         return users;
     }
@@ -313,9 +319,27 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task UpdateAvailabilityAuditAsync(Guid userId, UserAvailabilityRedisDto existingAvailability, string? ipAddress, string? userAgent)
     {
-        this.logger.LogInformation("Updating availability audit for user {UserId}. IP: {IpAddress}, UserAgent: {UserAgent}", userId, ipAddress, userAgent);
+        if (userId == Guid.Empty)
+        {
+            this.logger.LogWarning("Availability audit update failed: UserId cannot be empty.");
+            throw new ArgumentException("UserId cannot be empty.", nameof(userId));
+        }
+
+        if (existingAvailability == null)
+        {
+            this.logger.LogWarning("Availability audit update failed: existingAvailability cannot be null. UserId: {UserId}", userId);
+            throw new ArgumentNullException(nameof(existingAvailability));
+        }
+
+        this.logger.LogInformation(
+            "Updating availability audit for user {UserId}. IP: {IpAddress}, UserAgent: {UserAgent}",
+            userId,
+            ipAddress,
+            userAgent);
+
         await this.auditLogRepo.AddAuditLog(userId, existingAvailability, ipAddress, userAgent);
         await this.auditLogRepo.SaveChangesAsync();
+
         this.logger.LogInformation("Availability audit updated successfully for user {UserId}.", userId);
     }
 
@@ -323,7 +347,7 @@ public class UserService : IUserService
     public async Task<VerificationResponse> ActivateUser(Guid userId, VerificationRequest verificationRequest)
     {
         var requirements = await this.verificationRequirementService.GetEffectiveValidationOptionsAsync(userId);
-        if (requirements is null)
+        if (requirements == null)
         {
             this.logger.LogWarning("Rejecting user verification: Verification requirements not configured for user {UserId}.", userId);
             throw new InvalidOperationException("Verification requirements not configured.");
@@ -336,7 +360,10 @@ public class UserService : IUserService
         if (requirements.RequireIdDocument &&
             verificationRequest.VerificationType != VerificationType.IdDocument.ToDisplayName())
         {
-            this.logger.LogWarning("Rejecting user verification for user {UserId}: Verification type must be 'id_document'. Provided: {Type}", userId, verificationRequest.VerificationType);
+            this.logger.LogWarning(
+                "Rejecting user verification for user {UserId}: Verification type must be 'id_document'. Provided: {Type}",
+                userId,
+                verificationRequest.VerificationType);
             throw new InvalidOperationException("Verification type must be 'id_document'.");
         }
 
@@ -344,47 +371,48 @@ public class UserService : IUserService
         var idValidation = verificationRequest.IdDocumentValidation;
         if (requirements.RequireIdDocument)
         {
-            if (idValidation is null || !idValidation.Enabled)
+            if (idValidation == null || !idValidation.Enabled)
             {
                 this.logger.LogWarning("Rejecting user verification for user {UserId}: ID document validation not enabled.", userId);
                 throw new InvalidOperationException("ID document validation must be enabled.");
             }
 
             var validation = idValidation.ValidationResult;
-            if (validation is null ||
-                !validation.IdFormatValid ||
-                !validation.PhotoPresent ||
-                !idValidation.PhotoUploaded)
+            if (validation == null || !validation.IdFormatValid || !validation.PhotoPresent || !idValidation.PhotoUploaded)
             {
                 this.logger.LogWarning(
-                    "Rejecting user verification for user {UserId}: ID document validation failed. IdFormatValid: {IdFormatValid}, PhotoPresent: {PhotoPresent}, PhotoUploaded: {PhotoUploaded}", userId, validation?.IdFormatValid, validation?.PhotoPresent, idValidation?.PhotoUploaded);
+                    "Rejecting user verification for user {UserId}: ID document validation failed. IdFormatValid: {IdFormatValid}, PhotoPresent: {PhotoPresent}, PhotoUploaded: {PhotoUploaded}",
+                    userId,
+                    validation?.IdFormatValid,
+                    validation?.PhotoPresent,
+                    idValidation?.PhotoUploaded);
                 throw new InvalidOperationException("ID document validation failed field checks.");
             }
         }
 
         // Phone & Email check
         var additional = verificationRequest.AdditionalVerification;
-        if (requirements.RequirePhoneVerification && (additional is null || !additional.PhoneVerification))
+        if (requirements.RequirePhoneVerification && (additional == null || !additional.PhoneVerification))
         {
             this.logger.LogWarning("Rejecting user verification for user {UserId}: Phone verification required.", userId);
             throw new InvalidOperationException("Phone verification is required.");
         }
 
-        if (requirements.RequireEmailVerification && (additional is null || !additional.EmailVerification))
+        if (requirements.RequireEmailVerification && (additional == null || !additional.EmailVerification))
         {
             this.logger.LogWarning("Rejecting user verification for user {UserId}: Email verification required.", userId);
             throw new InvalidOperationException("Email verification is required.");
         }
 
         // Validate South African ID if provided
-        if (!this.ValidateSouthAfricanId(verificationRequest.IdDocumentValidation.IdNumber))
+        if (!this.ValidateSouthAfricanId(idValidation.IdNumber))
         {
-            this.logger.LogWarning("Rejecting user verification for user {UserId}: Invalid South African ID {IdNumber}", userId, verificationRequest.IdDocumentValidation.IdNumber);
-            throw new ArgumentException("Invalid South African ID number");
+            this.logger.LogWarning("Rejecting user verification for user {UserId}: Invalid South African ID {IdNumber}", userId, idValidation.IdNumber);
+            throw new ArgumentException("Invalid South African ID number.");
         }
 
         user.Status = UserStatusType.Active.ToDisplayName();
-        user.IdNumber = verificationRequest.IdDocumentValidation.IdNumber;
+        user.IdNumber = idValidation.IdNumber;
 
         var verificationRecord = new VerificationRecord
         {
@@ -419,6 +447,12 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<bool> CheckIdNumber(Guid userId, string idNumber)
     {
+        if (userId == Guid.Empty)
+        {
+            this.logger.LogWarning("ID number check failed: UserId cannot be empty.");
+            throw new ArgumentException("UserId cannot be empty.", nameof(userId));
+        }
+
         var user = await this.repo.GetUserByIdAsync(userId);
         if (user == null)
         {
@@ -433,20 +467,32 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<ClaimJobResponse> ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, List<Guid>? originalTranscribers = null, int? requiredMinElo = null)
     {
+        if (userId == Guid.Empty)
+        {
+            this.logger.LogWarning("Job claim failed: UserId cannot be empty.");
+            throw new ArgumentException("UserId cannot be empty.", nameof(userId));
+        }
+
+        if (claimJobRequest == null || string.IsNullOrEmpty(claimJobRequest.JobId))
+        {
+            this.logger.LogWarning("Job claim failed: Invalid job request.");
+            throw new ArgumentException("Job request is invalid.", nameof(claimJobRequest));
+        }
+
         var claimId = Guid.NewGuid();
         this.logger.LogInformation("User {UserId} attempting to claim job {JobId}.", userId, claimJobRequest.JobId);
 
         var availabilityCache = await this.redisService.GetAvailabilityAsync(userId);
         var userEloCache = await this.redisService.GetUserEloAsync(userId);
-        var userDb = new User();
         var userjobClaims = await this.redisService.GetUserClaimsAsync(userId);
 
         if (userjobClaims.Contains(claimJobRequest.JobId))
         {
             this.logger.LogWarning("User {UserId} already claimed job {JobId}.", userId, claimJobRequest.JobId);
-            throw new InvalidOperationException("User already claimed the job:");
+            throw new InvalidOperationException("User already claimed the job.");
         }
 
+        User? userDb = null;
         if (userEloCache == null)
         {
             userDb = await this.repo.GetUserByIdAsync(userId, false, false, u => u.Statistics!, u => u.EloHistories, u => u.JobCompletions);
@@ -455,56 +501,56 @@ public class UserService : IUserService
                 this.logger.LogWarning("User {UserId} not found during Elo cache miss.", userId);
                 throw new KeyNotFoundException("User not found");
             }
-        }
 
-        // Elo cache miss logic
-        if (userEloCache == null && userDb?.Statistics != null)
-        {
-            var userStats = userDb.Statistics;
-            var elohistories = userDb.EloHistories.ToList();
-            var lastJobCompleted = userDb.JobCompletions.MaxBy(jc => jc.CompletedAt)?.CompletedAt;
-            userEloCache = new UserEloRedisDto
+            // Set cache if available
+            if (userDb.Statistics != null)
             {
-                CurrentElo = userStats.CurrentElo,
-                PeakElo = userStats.PeakElo,
-                GamesPlayed = userStats.GamesPlayed,
-                RecentTrend = this.eloService.GetEloTrend(elohistories, 7),
-                LastJobCompleted = lastJobCompleted ?? default,
-            };
-
-            await this.redisService.SetUserEloAsync(userId, userEloCache);
-            this.logger.LogInformation("Elo cache set for user {UserId}. CurrentElo: {Elo}", userId, userEloCache.CurrentElo);
+                var userStats = userDb.Statistics;
+                var elohistories = userDb.EloHistories.ToList();
+                var lastJobCompleted = userDb.JobCompletions.MaxBy(jc => jc.CompletedAt)?.CompletedAt ?? default;
+                userEloCache = new UserEloRedisDto
+                {
+                    CurrentElo = userStats.CurrentElo,
+                    PeakElo = userStats.PeakElo,
+                    GamesPlayed = userStats.GamesPlayed,
+                    RecentTrend = this.eloService.GetEloTrend(elohistories, 7),
+                    LastJobCompleted = lastJobCompleted,
+                };
+                await this.redisService.SetUserEloAsync(userId, userEloCache);
+                this.logger.LogInformation("Elo cache set for user {UserId}. CurrentElo: {Elo}", userId, userEloCache.CurrentElo);
+            }
         }
 
         if (availabilityCache == null || availabilityCache.Status != UserAvailabilityType.Available.ToDisplayName())
         {
             this.logger.LogWarning("User {UserId} unavailable to claim job {JobId}. Status: {Status}", userId, claimJobRequest.JobId, availabilityCache?.Status);
-            throw new ArgumentException("Rejecting tiebreaker claim: User is currently unavailable for work.");
+            throw new InvalidOperationException("User is currently unavailable for work.");
         }
 
         if (availabilityCache.CurrentWorkload >= availabilityCache.MaxConcurrentJobs)
         {
             this.logger.LogWarning("User {UserId} reached max concurrent jobs: {Workload}/{Max}", userId, availabilityCache.CurrentWorkload, availabilityCache.MaxConcurrentJobs);
-            throw new ArgumentException("Rejecting tiebreaker claim: User already has maximum concurrent jobs.");
+            throw new InvalidOperationException("User already has maximum concurrent jobs.");
         }
 
         if (originalTranscribers != null && originalTranscribers.Contains(userId))
         {
             this.logger.LogWarning("User {UserId} is original transcriber for job {JobId}, cannot claim.", userId, claimJobRequest.JobId);
-            throw new ArgumentException("Rejecting tiebreaker claim: User is original transcriber.");
+            throw new InvalidOperationException("User is original transcriber.");
         }
 
         if (requiredMinElo != null && requiredMinElo > userEloCache!.CurrentElo)
         {
             this.logger.LogWarning("User {UserId} does not meet minimum Elo {RequiredElo}, current {CurrentElo}", userId, requiredMinElo, userEloCache.CurrentElo);
-            throw new ArgumentException("Rejecting tiebreaker claim: User Elo too low.");
+            throw new InvalidOperationException("User Elo too low.");
         }
 
+        // Try lock claim
         var tryLockJobClaim = await this.redisService.TryClaimJobAsync(claimJobRequest.JobId, userId);
         if (!tryLockJobClaim)
         {
             this.logger.LogWarning("Job {JobId} already claimed by another user, user {UserId} cannot claim.", claimJobRequest.JobId, userId);
-            throw new ArgumentException("Rejecting tiebreaker claim:Job is already claimed by another user.");
+            throw new InvalidOperationException("Job is already claimed by another user.");
         }
 
         this.logger.LogInformation("Job {JobId} successfully locked by user {UserId}.", claimJobRequest.JobId, userId);
@@ -529,6 +575,7 @@ public class UserService : IUserService
         await this.redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
         this.logger.LogInformation("Job {JobId} lock successfully released by user {UserId}.", claimJobRequest.JobId, userId);
 
+        // Publish CloudEvent safely
         var cloudEvent = new CloudEvent
         {
             Id = Guid.NewGuid().ToString(),
@@ -569,6 +616,12 @@ public class UserService : IUserService
     {
         this.logger.LogInformation("Validating tiebreaker claim for user {UserId} on job {JobId}.", userId, validationReq.OriginalJobId);
 
+        if (validationReq == null || string.IsNullOrEmpty(validationReq.OriginalJobId))
+        {
+            this.logger.LogWarning("Tiebreaker claim failed: Invalid validation request for user {UserId}.", userId);
+            throw new ArgumentException("Invalid validation request", nameof(validationReq));
+        }
+
         var claimId = Guid.NewGuid();
         var claimJobRequest = new ClaimJobRequest
         {
@@ -577,7 +630,12 @@ public class UserService : IUserService
         };
 
         var jobClaim = await this.ClaimJobAsync(userId, claimJobRequest, validationReq.OriginalTranscribers, validationReq.RequiredMinElo);
-        this.logger.LogInformation("Tiebreaker claim successful for user {UserId} on job {JobId}, ClaimId: {ClaimId}", userId, claimJobRequest.JobId, claimId);
+
+        this.logger.LogInformation(
+            "Tiebreaker claim successful for user {UserId} on job {JobId}, ClaimId: {ClaimId}",
+            userId,
+            claimJobRequest.JobId,
+            claimId);
 
         return new ValidateTiebreakerClaimResponse
         {
@@ -597,7 +655,13 @@ public class UserService : IUserService
     {
         this.logger.LogInformation("Setting professional status for user {UserId} requested by {Authorizer}.", userId, validationReq.AuthorizedBy);
 
-        var user = await this.repo.GetUserByIdAsync(userId, true, false, u => u.Statistics!, userId => userId.VerificationRecords);
+        if (validationReq == null)
+        {
+            this.logger.LogWarning("SetProfessional failed: validation request is null for user {UserId}.", userId);
+            throw new ArgumentException("Validation request cannot be null", nameof(validationReq));
+        }
+
+        var user = await this.repo.GetUserByIdAsync(userId, true, false, u => u.Statistics!, u => u.VerificationRecords);
         var authorizedBy = await this.repo.GetUserByIdAsync(validationReq.AuthorizedBy);
 
         if (user == null || user.Statistics == null)
@@ -623,11 +687,12 @@ public class UserService : IUserService
         if (!eligible)
         {
             this.logger.LogWarning("Cannot set professional status for user {UserId}: Minimum criteria not met.", userId);
-            throw new ArgumentException("Minimum criteria not met.");
+            throw new InvalidOperationException("Minimum criteria not met for professional status.");
         }
 
         var previousRole = user.Role;
         user.IsProfessional = validationReq.IsProfessional;
+        user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
 
         user.VerificationRecords.Add(new VerificationRecord
         {
@@ -640,7 +705,6 @@ public class UserService : IUserService
             CreatedAt = DateTime.UtcNow,
         });
 
-        user.Role = validationReq.IsProfessional ? UserRoleType.Professional.ToDisplayName() : UserRoleType.Transcriber.ToDisplayName();
         await this.repo.SaveChangesAsync();
 
         this.logger.LogInformation("Professional status set for user {UserId}. PreviousRole: {PreviousRole}, NewRole: {NewRole}", userId, previousRole, user.Role);
@@ -669,7 +733,6 @@ public class UserService : IUserService
         }
 
         var verificationRecord = this.GetLastProfessionalVerificationRecord(user);
-
         var response = new GetProfessionalStatusResponse
         {
             UserId = user.Id,
@@ -712,12 +775,18 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<ProfessionalStatusBatchResponse> GetBatchProfessionalStatus(List<Guid> userIds)
     {
+        if (userIds == null || !userIds.Any())
+        {
+            this.logger.LogWarning("Batch professional status fetch failed: No user IDs provided.");
+            throw new ArgumentException("User ID list cannot be empty.", nameof(userIds));
+        }
+
         this.logger.LogInformation("Fetching batch professional status for {Count} users.", userIds.Count);
 
         var users = await this.repo.GetFilteredListAsync(u => userIds.Contains(u.Id));
         if (users == null || users.Count == 0)
         {
-            this.logger.LogWarning("Batch professional status fetch failed: Users {UserIds} not found.", string.Join(", ", userIds));
+            this.logger.LogWarning("Batch professional status fetch failed: Users not found. UserIds: {UserIds}", string.Join(", ", userIds));
             throw new KeyNotFoundException("No user found.");
         }
 
@@ -739,7 +808,11 @@ public class UserService : IUserService
             StandardTranscribers = users.Count(u => !u.IsProfessional),
         };
 
-        this.logger.LogInformation("Batch professional status fetched successfully. TotalChecked: {TotalChecked}, Professionals: {Professionals}, StandardTranscribers: {StandardTranscribers}", response.Summary.TotalChecked, response.Summary.Professionals, response.Summary.StandardTranscribers);
+        this.logger.LogInformation(
+            "Batch professional status fetched successfully. TotalChecked: {TotalChecked}, Professionals: {Professionals}, StandardTranscribers: {StandardTranscribers}",
+            response.Summary.TotalChecked,
+            response.Summary.Professionals,
+            response.Summary.StandardTranscribers);
 
         return response;
     }
@@ -747,19 +820,22 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<UserLoginResponse?> AuthenticateAsync(UserLoginRequest request)
     {
+        if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            this.logger.LogWarning("Authentication failed: Invalid login request.");
+            throw new ArgumentException("Username and password must be provided.");
+        }
+
         this.logger.LogInformation("Authenticating user with username/email {Username}.", request.Username);
 
         var user = await this.repo.GetUserByEmailAsync(request.Username);
-
         if (user == null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
         {
             this.logger.LogWarning("Authentication failed for username/email {Username}. Invalid credentials.", request.Username);
             return null;
         }
 
-        var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(this.jwtOptions.Value.Secret);
-
         var claims = new List<Claim>
         {
             new (ClaimTypes.NameIdentifier, user!.Id.ToString()),
@@ -775,6 +851,7 @@ public class UserService : IUserService
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
         };
 
+        var tokenHandler = new JwtSecurityTokenHandler();
         var token = tokenHandler.CreateToken(tokenDescriptor);
 
         this.logger.LogInformation("User {UserId} authenticated successfully.", user.Id);
@@ -789,20 +866,26 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(string currentPassword, string newPassword)
     {
-        var userId = Guid.Parse(this.httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) !);
+        var userIdStr = this.httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+        {
+            this.logger.LogWarning("Password change failed: Unable to determine current user.");
+            throw new InvalidOperationException("User context is invalid.");
+        }
+
         this.logger.LogInformation("User {UserId} is attempting to change password.", userId);
 
         var user = await this.repo.GetUserByIdAsync(userId, true);
         if (user == null)
         {
             this.logger.LogError("Password change failed: User {UserId} not found.", userId);
-            throw new ArgumentException("User not found");
+            throw new KeyNotFoundException("User not found.");
         }
 
         if (!PasswordHasher.Verify(currentPassword, user.PasswordHash))
         {
-            this.logger.LogWarning("Password change failed: incorrect current password for user {Email}.", user.Email);
-            return (false, "Current password is incorrect");
+            this.logger.LogWarning("Password change failed: Incorrect current password for user {Email}.", user.Email);
+            return (false, "Current password is incorrect.");
         }
 
         var passwordValidationError = this.ValidatePassword(newPassword);
@@ -816,14 +899,17 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await this.repo.SaveChangesAsync();
+
         this.logger.LogInformation("Password changed successfully for user {Email}.", user.Email);
         return (true, null);
     }
 
     /// <inheritdoc />
-    public async Task<UserAvailabilityResponse> GetUserAvailabilitySummaryAsync(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
+    public async Task<UserAvailabilityResponse> GetUserAvailabilitySummaryAsync(
+        string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
     {
-        this.logger.LogInformation("Fetching user availability summary. Filters - Dialect: {Dialect}, MinElo: {MinElo}, MaxElo: {MaxElo}, MaxWorkload: {MaxWorkload}, Limit: {Limit}", dialect, minElo, maxElo, maxWorkload, limit);
+        this.logger.LogInformation(
+            "Fetching user availability summary. Filters - Dialect: {Dialect}, MinElo: {MinElo}, MaxElo: {MaxElo}, MaxWorkload: {MaxWorkload}, Limit: {Limit}", dialect, minElo, maxElo, maxWorkload, limit);
 
         var availableUsersResp = new UserAvailabilityResponse();
         var users = await this.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
@@ -841,7 +927,7 @@ public class UserService : IUserService
             .Where(u => cacheMap.ContainsKey(u.Id) && cacheMap[u.Id].Status == UserAvailabilityType.Available.ToDisplayName())
             .Select(u =>
             {
-                var availability = cacheMap.ContainsKey(u.Id) ? cacheMap[u.Id] : null;
+                var availability = cacheMap[u.Id];
 
                 return new AvailableUsersDto
                 {
@@ -849,7 +935,7 @@ public class UserService : IUserService
                     EloRating = u.Statistics?.CurrentElo,
                     PeakElo = u.Statistics?.PeakElo,
                     DialectExpertise = u.Dialects.Select(d => d.Dialect).ToList(),
-                    CurrentWorkload = availability?.CurrentWorkload,
+                    CurrentWorkload = availability.CurrentWorkload,
                     RecentPerformance = trendMap[u.Id],
                     GamesPlayed = u.Statistics?.GamesPlayed,
                     Role = u.Role,
@@ -862,7 +948,10 @@ public class UserService : IUserService
         availableUsersResp.TotalAvailable = availableUsersResp.AvailableUsers.Count;
         availableUsersResp.QueryTimestamp = DateTime.UtcNow;
 
-        this.logger.LogInformation("User availability summary fetched. Total available users: {Count}", availableUsersResp.TotalAvailable);
+        this.logger.LogInformation(
+            "User availability summary fetched. Total available users: {Count}",
+            availableUsersResp.TotalAvailable);
+
         return availableUsersResp;
     }
 
@@ -871,6 +960,7 @@ public class UserService : IUserService
     {
         this.logger.LogInformation("Fetching availability for user {UserId}.", userId);
         var availability = await this.redisService.GetAvailabilityAsync(userId);
+
         if (availability == null)
         {
             this.logger.LogWarning("No availability found in cache for user {UserId}.", userId);
@@ -880,38 +970,43 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc/>
-    public async Task<UserAvailabilityUpdateResponse> PatchAvailabilityAsync(Guid userId, UserAvailabilityUpdateRequest availabilityUpdateRequest)
+    public async Task<UserAvailabilityUpdateResponse> PatchAvailabilityAsync(
+        Guid userId, UserAvailabilityUpdateRequest availabilityUpdateRequest)
     {
         var ipAddress = this.httpContextAccessor?.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = this.httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown";
 
-        this.logger.LogInformation("User {UserId} is attempting to update availability. Status: {Status}, MaxConcurrentJobs: {MaxJobs}", userId, availabilityUpdateRequest.Status, availabilityUpdateRequest.MaxConcurrentJobs);
+        this.logger.LogInformation(
+            "User {UserId} is attempting to update availability. Status: {Status}, MaxConcurrentJobs: {MaxJobs}", userId, availabilityUpdateRequest.Status, availabilityUpdateRequest.MaxConcurrentJobs);
 
         var existingAvailability = await this.redisService.GetAvailabilityAsync(userId)
-                                 ?? new UserAvailabilityRedisDto();
+                                  ?? new UserAvailabilityRedisDto();
 
         if (!EnumDisplayHelper.TryParseDisplayName(availabilityUpdateRequest.Status, out UserAvailabilityType outcome))
         {
-            this.logger.LogWarning("Rejecting availability update for user {UserId}: Invalid Status '{Status}'", userId, availabilityUpdateRequest.Status);
-            throw new ArgumentException("Invalid Status Provided.");
+            this.logger.LogWarning(
+                "Rejecting availability update for user {UserId}: Invalid Status '{Status}'", userId, availabilityUpdateRequest.Status);
+            throw new ArgumentException("Invalid Status provided.");
         }
 
         if (availabilityUpdateRequest.MaxConcurrentJobs < 1)
         {
-            this.logger.LogWarning("Rejecting availability update for user {UserId}: MaxConcurrentJobs must be > 0. Provided value: {Value}", userId, availabilityUpdateRequest.MaxConcurrentJobs);
-            throw new ArgumentException("Maximum concurrent job should be greater than 0");
+            this.logger.LogWarning(
+                "Rejecting availability update for user {UserId}: MaxConcurrentJobs must be > 0. Provided value: {Value}", userId, availabilityUpdateRequest.MaxConcurrentJobs);
+            throw new ArgumentException("Maximum concurrent jobs must be greater than 0.");
         }
 
         existingAvailability.Status = availabilityUpdateRequest.Status;
         existingAvailability.MaxConcurrentJobs = availabilityUpdateRequest.MaxConcurrentJobs;
         existingAvailability.LastUpdate = DateTime.UtcNow;
 
-        // Asynchronously write to Redis and persist in DB
+        // Persist changes asynchronously
         var redisTask = this.redisService.SetAvailabilityAsync(userId, existingAvailability);
         var auditTask = this.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
 
         await Task.WhenAll(redisTask, auditTask);
 
+        // Publish CloudEvent
         var cloudEvent = new CloudEvent
         {
             Id = Guid.NewGuid().ToString(),
@@ -932,7 +1027,8 @@ public class UserService : IUserService
             this.logger.LogWarning(ex, "User {UserId} availability update - CloudEvent publish failed.", userId);
         }
 
-        this.logger.LogInformation("User {UserId} availability successfully updated. Status: {Status}, MaxConcurrentJobs: {MaxJobs}", userId, existingAvailability.Status, existingAvailability.MaxConcurrentJobs);
+        this.logger.LogInformation(
+            "User {UserId} availability successfully updated. Status: {Status}, MaxConcurrentJobs: {MaxJobs}", userId, existingAvailability.Status, existingAvailability.MaxConcurrentJobs);
 
         return new UserAvailabilityUpdateResponse
         {

@@ -35,21 +35,27 @@ public class AdminAndQaUserSeederService
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task PopulateDatabaseAsync(string configFilePath)
     {
-        if (string.IsNullOrEmpty(configFilePath))
+        if (string.IsNullOrWhiteSpace(configFilePath))
         {
             this.logger.LogError("Admin and QA user seeder file path cannot be null or empty.");
-            throw new ArgumentException("Admin and QA user seeder file path cannot be null or empty.", nameof(configFilePath));
+            throw new ArgumentException("File path cannot be null or empty.", nameof(configFilePath));
         }
 
         this.logger.LogInformation("Starting admin and QA user seeding from file: {ConfigFilePath}", configFilePath);
 
+        if (!File.Exists(configFilePath))
+        {
+            this.logger.LogError("Seeder file not found: {ConfigFilePath}", configFilePath);
+            throw new FileNotFoundException("Admin and QA user seeder file not found.", configFilePath);
+        }
+
         var configJson = await File.ReadAllTextAsync(configFilePath);
         var users = JsonSerializer.Deserialize<List<UserModel>>(configJson);
 
-        if (users == null)
+        if (users == null || users.Count == 0)
         {
-            this.logger.LogError("Failed to parse admin and QA user seeder file: {ConfigFilePath}", configFilePath);
-            throw new ArgumentException("Admin and QA user seeder file path cannot be parsed.", nameof(configFilePath));
+            this.logger.LogError("Seeder file is empty or invalid JSON: {ConfigFilePath}", configFilePath);
+            throw new InvalidDataException("Admin and QA user seeder file is empty or invalid JSON.");
         }
 
         var dtNow = DateTime.UtcNow;
@@ -57,6 +63,7 @@ public class AdminAndQaUserSeederService
         foreach (var user in users)
         {
             var userDb = await this.userRepository.GetUserByIdAsync(user.Id, true, false, u => u.Statistics!);
+
             if (userDb == null)
             {
                 var userToBeSeeded = new User

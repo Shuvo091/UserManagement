@@ -76,6 +76,12 @@ public class EloService : IEloService
     /// <inheritdoc />
     public async Task<EloUpdateResponse> ApplyEloUpdatesAsync(EloUpdateRequest request)
     {
+        if (request == null)
+        {
+            this.logger.LogInformation("Request cannot be null.");
+            throw new ArgumentNullException(nameof(request));
+        }
+
         var eloUpdateResp = new EloUpdateResponse
         {
             WorkflowRequestId = request.WorkflowRequestId,
@@ -102,7 +108,7 @@ public class EloService : IEloService
         if (request.RecommendedEloChanges.Count > 2)
         {
             this.logger.LogWarning("Unexpected number of Elo changes found: {Count}. Expected 2.", request.RecommendedEloChanges.Count);
-            throw new ArgumentException("Unexpected number of elo change request found");
+            throw new ArgumentException("Unexpected number of Elo change requests found.");
         }
 
         var eloHistoryRecords = new List<EloHistory>();
@@ -169,7 +175,10 @@ public class EloService : IEloService
             // For redis update
             var recentHistory = await this.repo.FindAsync(
                 eh => eh.UserId == eloChange.TranscriberId && eh.ChangedAt >= cutOffDate);
+
+            recentHistory ??= new List<EloHistory>();
             recentHistory.Add(eloHistoryRecord);
+
             await this.redisService.SetUserEloAsync(eloChange.TranscriberId, new UserEloRedisDto
             {
                 CurrentElo = newElo,
@@ -194,6 +203,8 @@ public class EloService : IEloService
             DataContentType = "application/json",
             Data = new { RequestId = request.WorkflowRequestId, Message = "Users Elo Updated." },
         };
+
+        // Try-catch only for external systems
         try
         {
             await this.eventBus.PublishAsync(cloudEvent, TopicConstant.UserEloUpdated);
@@ -243,7 +254,7 @@ public class EloService : IEloService
         if (user == null)
         {
             this.logger.LogWarning("User not found while fetching Elo history. UserId: {UserId}", userId);
-            throw new KeyNotFoundException("User not found");
+            throw new KeyNotFoundException($"User not found with ID {userId}");
         }
 
         var stats = user.Statistics;
@@ -265,7 +276,7 @@ public class EloService : IEloService
             Date = eh.ChangedAt,
             OldElo = eh.OldElo,
             NewElo = eh.NewElo,
-            Outcome = eh.Outcome, // e.g. "win", "loss"
+            Outcome = eh.Outcome,
             JobId = eh.JobId,
         }).ToList();
 
@@ -307,7 +318,6 @@ public class EloService : IEloService
 
         var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().NewElo;
         var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
-
         var diff = latest - earliest;
         var sign = diff >= 0 ? "+" : "-";
 
@@ -320,12 +330,23 @@ public class EloService : IEloService
     /// <inheritdoc />
     public string GetEloTrend(List<EloHistory> eloHistories, int days)
     {
+        if (eloHistories == null)
+        {
+            this.logger.LogInformation("Elo histories cannot be null.");
+            throw new ArgumentNullException(nameof(eloHistories));
+        }
+
+        if (days <= 0)
+        {
+            this.logger.LogInformation("Days must be greater than zero. Got {days}", days);
+            throw new ArgumentOutOfRangeException(nameof(days), "Days must be greater than zero.");
+        }
+
         var cutOffDate = DateTime.UtcNow.AddDays(-days);
         this.logger.LogInformation("Calculating Elo trend from in-memory history over {Days} days, Entries: {Count}", days, eloHistories.Count);
 
         var recentHistory = eloHistories.Where(eh => eh.ChangedAt >= cutOffDate).ToList();
-
-        if (recentHistory == null || recentHistory.Count == 0)
+        if (recentHistory.Count == 0)
         {
             this.logger.LogInformation("No Elo history found in the given period. Returning default trend.");
             return $"0_over_{days}_days";
@@ -333,48 +354,55 @@ public class EloService : IEloService
 
         var earliest = recentHistory.OrderBy(eh => eh.ChangedAt).First().OldElo;
         var latest = recentHistory.OrderByDescending(eh => eh.ChangedAt).First().NewElo;
-
         var diff = latest - earliest;
         var sign = diff >= 0 ? "+" : "-";
-
         var trend = $"{sign}{Math.Abs(diff)}_over_{days}_days";
         this.logger.LogInformation("Elo trend calculated from in-memory history: {Trend}", trend);
-
         return trend;
     }
 
     /// <inheritdoc />
     public async Task<Dictionary<Guid, string>> BulkEloTrendAsync(List<Guid> userIds, int days)
     {
+        if (userIds == null || userIds.Count == 0)
+        {
+            this.logger.LogInformation("UserIds cannot be null.");
+            throw new ArgumentException("UserIds cannot be null or empty.", nameof(userIds));
+        }
+
+        if (days <= 0)
+        {
+            this.logger.LogInformation("Days must be greater than zero. Got {days}", days);
+            throw new ArgumentOutOfRangeException(nameof(days), "Days must be greater than zero.");
+        }
+
         this.logger.LogInformation("Calculating bulk Elo trend for {Count} users over {Days} days", userIds.Count, days);
         var cutOffDate = DateTime.UtcNow.AddDays(-days);
 
-        var recentHistories = await this.repo.FindAsync(
-            eh => userIds.Contains(eh.UserId) && eh.ChangedAt >= cutOffDate);
+        var recentHistories = await this.repo.FindAsync(eh => userIds.Contains(eh.UserId) && eh.ChangedAt >= cutOffDate);
+        if (recentHistories == null)
+        {
+            recentHistories = new List<EloHistory>();
+        }
 
-        var grouped = recentHistories
-            .GroupBy(eh => eh.UserId)
-            .ToDictionary(
-                g => g.Key,
-                g =>
-                {
-                    var ordered = g.OrderBy(e => e.ChangedAt).ToList();
-                    if (ordered.Count < 2)
-                    {
-                        this.logger.LogInformation("Not enough Elo history for UserId: {UserId}. Returning default trend.", g.Key);
-                        return $"0_over_{days}_days";
-                    }
+        var grouped = recentHistories.GroupBy(eh => eh.UserId).ToDictionary(g => g.Key, g =>
+        {
+            var ordered = g.OrderBy(e => e.ChangedAt).ToList();
+            if (ordered.Count < 2)
+            {
+                this.logger.LogInformation("Not enough Elo history for UserId: {UserId}. Returning default trend.", g.Key);
+                return $"0_over_{days}_days";
+            }
 
-                    var earliest = ordered.First().NewElo;
-                    var latest = ordered.Last().NewElo;
-                    var diff = latest - earliest;
-                    var sign = diff >= 0 ? "+" : "-";
-                    var trend = $"{sign}{Math.Abs(diff)}_over_{days}_days";
-                    this.logger.LogInformation("Calculated Elo trend for UserId: {UserId}: {Trend}", g.Key, trend);
-                    return trend;
-                });
+            var earliest = ordered.First().NewElo;
+            var latest = ordered.Last().NewElo;
+            var diff = latest - earliest;
+            var sign = diff >= 0 ? "+" : "-";
+            var trend = $"{sign}{Math.Abs(diff)}_over_{days}_days";
+            this.logger.LogInformation("Calculated Elo trend for UserId: {UserId}: {Trend}", g.Key, trend);
+            return trend;
+        });
 
-        // Handle users with no history
         foreach (var userId in userIds)
         {
             if (!grouped.ContainsKey(userId))
@@ -390,6 +418,18 @@ public class EloService : IEloService
     /// <inheritdoc />
     public double GetWinRate(List<EloHistory> eloHistories, int? days = null)
     {
+        if (eloHistories == null)
+        {
+            this.logger.LogInformation("Elo histories cannot be null.");
+            throw new ArgumentNullException(nameof(eloHistories));
+        }
+
+        if (days.HasValue && days.Value <= 0)
+        {
+            this.logger.LogInformation("Days must be greater than zero. Got {days}", days);
+            throw new ArgumentOutOfRangeException(nameof(days), "Days must be greater than zero.");
+        }
+
         if (days.HasValue)
         {
             var cutOffDate = DateTime.UtcNow.AddDays(-days.Value);
@@ -413,6 +453,24 @@ public class EloService : IEloService
     /// <inheritdoc />
     public double GetAverageOpponentElo(List<EloHistory> eloHistories, int? days = null)
     {
+        if (eloHistories == null)
+        {
+            this.logger.LogInformation("Elo histories cannot be null.");
+            throw new ArgumentNullException(nameof(eloHistories));
+        }
+
+        if (days.HasValue && days.Value <= 0)
+        {
+            this.logger.LogInformation("Days must be greater than zero. Found : {days}", days);
+            throw new ArgumentOutOfRangeException(nameof(days), "Days must be greater than zero.");
+        }
+
+        if (eloHistories.Count == 0)
+        {
+            this.logger.LogInformation("No Elo history provided. Returning 0.");
+            return 0;
+        }
+
         if (days.HasValue)
         {
             var cutOffDate = DateTime.UtcNow.AddDays(-days.Value);
@@ -435,16 +493,26 @@ public class EloService : IEloService
     /// <inheritdoc />
     public async Task<ThreeWayEloUpdateResponse> ResolveThreeWay(ThreeWayEloUpdateRequest twuReq)
     {
+        if (twuReq == null)
+        {
+            this.logger.LogWarning("Request cannot be null or empty.");
+            throw new ArgumentNullException(nameof(twuReq));
+        }
+
+        if (string.IsNullOrEmpty(twuReq.WorkflowRequestId))
+        {
+            this.logger.LogWarning("WorkflowRequestId cannot be null or empty. WorkflowRequestId: {WorkflowRequestId}", nameof(twuReq.WorkflowRequestId));
+            throw new ArgumentException("WorkflowRequestId cannot be null or empty.", nameof(twuReq.WorkflowRequestId));
+        }
+
         this.logger.LogInformation("Starting three-way Elo resolution for WorkflowRequestId: {WorkflowRequestId}", twuReq.WorkflowRequestId);
 
-        // Validate input count
         if (twuReq.ThreeWayEloChanges == null || twuReq.ThreeWayEloChanges.Count != 3)
         {
             this.logger.LogWarning("Exactly 3 Elo changes required. Found: {Count}", twuReq.ThreeWayEloChanges?.Count);
             throw new ArgumentException("Exactly 3 Elo changes required for three-way resolution.");
         }
 
-        // Validate roles exist exactly once
         var roles = twuReq.ThreeWayEloChanges.Select(c => c.Role).ToList();
         var requiredRoles = new[]
         {
@@ -555,9 +623,12 @@ public class EloService : IEloService
                     : $"Your Elo rating decreased by {Math.Abs(eloChangeAdjusted)} points to {newElo}. Review feedback for improvement.",
             });
 
-            // Redis update
-            var recentHistory = await this.repo.FindAsync(
-                eh => eh.UserId == change.TranscriberId && eh.ChangedAt >= cutOffDate);
+            var recentHistory = await this.repo.FindAsync(eh => eh.UserId == change.TranscriberId && eh.ChangedAt >= cutOffDate);
+            if (recentHistory == null)
+            {
+                recentHistory = new List<EloHistory>();
+            }
+
             recentHistory.Add(eloHistoryRecord);
 
             await this.redisService.SetUserEloAsync(change.TranscriberId, new UserEloRedisDto
