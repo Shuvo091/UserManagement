@@ -6,9 +6,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using AutoMapper;
+using CloudNative.CloudEvents;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Application.Constants;
 using CohesionX.UserManagement.Database.Abstractions.Entities;
 using CohesionX.UserManagement.Database.Abstractions.Repositories;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +23,7 @@ using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
+using SharedLibrary.Kafka.Services.Interfaces;
 
 namespace CohesionX.UserManagement.Application.Services;
 
@@ -36,6 +38,7 @@ public class UserService : IUserService
     private readonly IEloService eloService;
     private readonly IVerificationRequirementService verificationRequirementService;
     private readonly IRedisService redisService;
+    private readonly IEventBus eventBus;
     private readonly IHttpContextAccessor httpContextAccessor;
     private readonly int initElo;
     private readonly int minEloRequiredForPro;
@@ -51,8 +54,8 @@ public class UserService : IUserService
     /// <param name="auditLogRepo">Repository for logging user-related audit events and changes.</param>
     /// <param name="jobClaimRepo">Repository for tracking job claim history and status for users.</param>
     /// <param name="redisService">Service for managing Redis-based caching and availability tracking.</param>
+    /// <param name="eventBus">Service for publishing events.</param>
     /// <param name="httpContextAccessor"> Http Context accessor.</param>
-    /// <param name="mapper">Object mapper used to map between domain entities and DTOs.</param>
     /// <param name="appContantOptions">Application configuration used to retrieve settings and secrets.</param>
     /// <param name="eloService">Service that handles Elo rating logic and updates for users.</param>
     /// <param name="verificationRequirementService">Service to manage and retrieve verification requirements and policies.</param>
@@ -63,8 +66,8 @@ public class UserService : IUserService
         IAuditLogRepository auditLogRepo,
         IJobClaimRepository jobClaimRepo,
         IRedisService redisService,
+        IEventBus eventBus,
         IHttpContextAccessor httpContextAccessor,
-        IMapper mapper,
         IOptions<AppConstantsOptions> appContantOptions,
         IEloService eloService,
         IVerificationRequirementService verificationRequirementService,
@@ -77,6 +80,7 @@ public class UserService : IUserService
         this.eloService = eloService;
         this.verificationRequirementService = verificationRequirementService;
         this.redisService = redisService;
+        this.eventBus = eventBus;
         this.httpContextAccessor = httpContextAccessor;
         var initElo = appContantOptions.Value.InitialEloRating;
         this.initElo = initElo;
@@ -515,6 +519,25 @@ public class UserService : IUserService
         await this.redisService.ReleaseJobClaimAsync(claimJobRequest.JobId);
         this.logger.LogInformation($"Job: {claimJobRequest.JobId} lock successfully released by user: {userId}.");
 
+        var cloudEvent = new CloudEvent
+        {
+            Id = Guid.NewGuid().ToString(),
+            Source = new Uri($"{TopicConstant.UserJobClaimed}:{userId}"),
+            Type = TopicConstant.UserJobClaimed,
+            Time = DateTimeOffset.UtcNow,
+            DataContentType = "application/json",
+            Data = new { UserId = userId, Message = "Users Claimed job.", Data = claimJobRequest },
+        };
+        try
+        {
+            await this.eventBus.PublishAsync(cloudEvent, TopicConstant.UserJobClaimed);
+            this.logger.LogInformation($"{userId} job claim update -  CloudEvent publish Successful.");
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogWarning(ex, $"{userId} job claim update - CloudEvent publish falied.");
+        }
+
         var response = new ClaimJobResponse
         {
             ClaimValidated = true,
@@ -845,6 +868,25 @@ public class UserService : IUserService
         var auditTask = this.UpdateAvailabilityAuditAsync(userId, existingAvailability, ipAddress, userAgent);
 
         await Task.WhenAll(redisTask, auditTask);
+
+        var cloudEvent = new CloudEvent
+        {
+            Id = Guid.NewGuid().ToString(),
+            Source = new Uri($"{TopicConstant.UserAvailabilityUpdated}:{userId}"),
+            Type = TopicConstant.UserAvailabilityUpdated,
+            Time = DateTimeOffset.UtcNow,
+            DataContentType = "application/json",
+            Data = new { UserId = userId, Message = "Users Availability Updated.", Data = existingAvailability },
+        };
+        try
+        {
+            await this.eventBus.PublishAsync(cloudEvent, TopicConstant.UserAvailabilityUpdated);
+            this.logger.LogInformation($"{userId} availability update -  CloudEvent publish Successful.");
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogWarning(ex, $"{userId} availability update - CloudEvent publish falied.");
+        }
 
         return new UserAvailabilityUpdateResponse
         {

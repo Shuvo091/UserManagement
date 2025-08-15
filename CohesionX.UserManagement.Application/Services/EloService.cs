@@ -30,7 +30,6 @@ public class EloService : IEloService
     private readonly IUserRepository userRepo;
     private readonly IWorkflowEngineClient workflowEngineClient;
     private readonly IUserStatisticsRepository userStatRepo;
-    private readonly IMapper mapper;
     private readonly IUnitOfWork unitOfWork;
     private readonly IRedisService redisService;
     private readonly IEventBus eventBus;
@@ -48,7 +47,6 @@ public class EloService : IEloService
     /// <param name="unitOfWork">Unit of Work pattern implementation to coordinate repository operations and transaction management.</param>
     /// <param name="redisService">Service for interacting with Redis cache and data storage.</param>
     /// <param name="eventBus">Service for publishing in kafka.</param>
-    /// <param name="mapper">AutoMapper instance used for mapping between domain entities and DTOs.</param>
     /// <param name="appContantOptions"> Options for app contants. </param>
     /// <param name="workflowEngineClient">Client for communicating with the external workflow engine API.</param>
     /// <param name="logger"> logger. </param>
@@ -59,7 +57,6 @@ public class EloService : IEloService
         IUnitOfWork unitOfWork,
         IRedisService redisService,
         IEventBus eventBus,
-        IMapper mapper,
         IOptions<AppConstantsOptions> appContantOptions,
         IWorkflowEngineClient workflowEngineClient,
         ILogger<EloService> logger)
@@ -70,7 +67,6 @@ public class EloService : IEloService
         this.redisService = redisService;
         this.eventBus = eventBus;
         this.userStatRepo = userStatRepo;
-        this.mapper = mapper;
         this.eloKFactorNew = appContantOptions.Value.EloKFactorNew;
         this.eloKFactorEstablished = appContantOptions.Value.EloKFactorEstablished;
         this.eloKFactorExpert = appContantOptions.Value.EloKFactorExpert;
@@ -541,6 +537,25 @@ public class EloService : IEloService
         await this.unitOfWork.EloHistories.AddRangeAsync(eloHistories);
         await this.unitOfWork.JobCompletions.AddRangeAsync(jobCompletions);
         await this.unitOfWork.SaveChangesAsync();
+
+        var cloudEvent = new CloudEvent
+        {
+            Id = Guid.NewGuid().ToString(),
+            Source = new Uri($"{TopicConstant.UserEloUpdated}:{twuReq.WorkflowRequestId}"),
+            Type = TopicConstant.UserEloUpdated,
+            Time = DateTimeOffset.UtcNow,
+            DataContentType = "application/json",
+            Data = new { RequestId = twuReq.WorkflowRequestId, Message = "Users Elo Updated." },
+        };
+        try
+        {
+            await this.eventBus.PublishAsync(cloudEvent, TopicConstant.UserEloUpdated);
+            this.logger.LogInformation($"{twuReq.WorkflowRequestId} CloudEvent publish Successful.");
+        }
+        catch (Exception ex)
+        {
+            this.logger.LogWarning(ex, $"{twuReq.WorkflowRequestId} CloudEvent publish falied.");
+        }
 
         var notifyReq = new EloUpdateNotificationRequest
         {

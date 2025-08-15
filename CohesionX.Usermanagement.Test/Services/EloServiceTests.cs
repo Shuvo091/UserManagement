@@ -1,6 +1,4 @@
 ﻿using System.Linq.Expressions;
-using AutoMapper;
-using CohesionX.UserManagement.Abstractions.DTOs;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
 using CohesionX.UserManagement.Application.Services;
@@ -14,6 +12,7 @@ using SharedLibrary.Common.Utilities;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
 using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
+using SharedLibrary.Kafka.Services.Interfaces;
 
 namespace CohesionX.UserManagement.Application.Tests;
 
@@ -27,7 +26,7 @@ public class EloServiceTests
     private readonly Mock<IUserStatisticsRepository> _userStatRepo = new ();
     private readonly Mock<IUnitOfWork> _uow = new ();
     private readonly Mock<IRedisService> _redis = new ();
-    private readonly Mock<IMapper> _mapper = new ();
+    private readonly Mock<IEventBus> _eventBus = new ();
     private readonly Mock<IWorkflowEngineClient> _wfClient = new ();
     private readonly EloService _service;
 
@@ -53,7 +52,7 @@ public class EloServiceTests
             this._userStatRepo.Object,
             this._uow.Object,
             this._redis.Object,
-            this._mapper.Object,
+            this._eventBus.Object,
             options,
             this._wfClient.Object,
             Mock.Of<ILogger<EloService>>());

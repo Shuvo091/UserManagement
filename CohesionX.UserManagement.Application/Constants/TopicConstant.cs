@@ -11,12 +11,17 @@ public static class TopicConstant
     public const string UserEloUpdated = "user.elo.updated";
 
     /// <summary>
-    /// Audit trail only.
+    /// Triggers when user's availability is updated.
     /// </summary>
     public const string UserAvailabilityUpdated = "user.availability.updated";
 
     /// <summary>
-    /// Audit trail only.
+    /// Triggers when user's performance hits a milestone.
     /// </summary>
     public const string UserPerformanceMilestone = "user.performance.milestone";
+
+    /// <summary>
+    /// Triggers when user's performance hits a milestone.
+    /// </summary>
+    public const string UserJobClaimed = "user.job.claimed";
 }
