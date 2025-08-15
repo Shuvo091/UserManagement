@@ -2,8 +2,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using AutoMapper;
-using Azure.Core;
 using CloudNative.CloudEvents;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
@@ -19,7 +17,6 @@ using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
 using SharedLibrary.Kafka.Services.Interfaces;
 using StackExchange.Redis;
-using System;
 
 namespace CohesionX.UserManagement.Application.Services;
 
