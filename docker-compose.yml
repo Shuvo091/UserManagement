@@ -94,8 +94,7 @@ services:
       AppConstantsOptions__DefaultBookoutMinutes: "480"
 
       # Workflow Engine
-      WorkflowEngineOptions__BaseUri: "https://workflow-engine-service"
-      WorkflowEngineOptions__EloNotifyUri: "https://workflow-engine-service"
+      WorkflowEngineOptions__BaseUrl: "https://workflow-engine-service"
 
       # OpenTelemetry
       OpenTelemetryOptions__ServiceName: "UserManagement"

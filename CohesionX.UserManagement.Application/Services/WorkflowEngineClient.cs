@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Abstractions.Services;
+using CohesionX.UserManagement.Application.Constants;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedLibrary.Contracts.Usermanagement.Requests;
@@ -19,7 +20,6 @@ namespace CohesionX.UserManagement.Application.Services;
 public class WorkflowEngineClient : IWorkflowEngineClient
 {
     private readonly HttpClient httpClient;
-    private readonly string eloUpdateNotifyUri;
     private readonly ILogger<WorkflowEngineClient> logger;
 
     /// <summary>
@@ -31,8 +31,7 @@ public class WorkflowEngineClient : IWorkflowEngineClient
     public WorkflowEngineClient(HttpClient httpClient, IOptions<WorkflowEngineOptions> configOptions, ILogger<WorkflowEngineClient> logger)
     {
         this.httpClient = httpClient;
-        this.eloUpdateNotifyUri = configOptions.Value.EloNotifyUri
-                              ?? throw new ArgumentNullException(nameof(configOptions), "EloUpdateNotifyUri must be set.");
+        this.httpClient.BaseAddress = new Uri(configOptions.Value.BaseUrl);
         this.logger = logger;
     }
 
@@ -43,7 +42,7 @@ public class WorkflowEngineClient : IWorkflowEngineClient
     /// <returns>Task of ELoUpdateNotification.</returns>
     public async Task<EloUpdateNotificationResponse?> NotifyEloUpdatedAsync(EloUpdateNotificationRequest request)
     {
-        using var response = await this.httpClient.PostAsJsonAsync(this.eloUpdateNotifyUri, request);
+        using var response = await this.httpClient.PostAsJsonAsync(WorkflowEngineUris.NotifyEloUpdate, request);
 
         response.EnsureSuccessStatusCode();
 
