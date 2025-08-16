@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CohesionX.SharedLibrary" Version="8.15.25.11" />
+    <PackageReference Include="CohesionX.SharedLibrary" Version="8.16.25.3" />
   </ItemGroup>
 
   <ItemGroup>
