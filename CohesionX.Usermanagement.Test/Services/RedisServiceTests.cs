@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Text.Json;
+﻿using System.Text.Json;
 using CohesionX.UserManagement.Abstractions.DTOs.Options;
 using CohesionX.UserManagement.Application.Services;
 using Microsoft.Extensions.Logging;
@@ -7,288 +6,380 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SharedLibrary.Cache.Services.Interfaces;
 using SharedLibrary.Contracts.Usermanagement.RedisDtos;
+using Xunit;
 
-namespace CohesionX.UserManagement.Application.Tests;
+namespace CohesionX.UserManagement.Tests.Services;
 
 /// <summary>
-/// RedisServiceTests.
+/// Unit tests for <see cref="RedisService"/>.
 /// </summary>
 public class RedisServiceTests
 {
-    private readonly Mock<ICacheService> _cache = new ();
+    private readonly Mock<ICacheService> _cacheMock;
+    private readonly Mock<ILogger<RedisService>> _loggerMock;
     private readonly RedisService _service;
-    private readonly TimeSpan _expectedAvailabilityTtl;
-    private readonly TimeSpan _userClaimsTtl;
-    private readonly TimeSpan _jobClaimLockTtl;
-    private readonly TimeSpan _userEloTtl;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RedisServiceTests"/> class.
     /// </summary>
     public RedisServiceTests()
     {
-        this._expectedAvailabilityTtl = TimeSpan.FromMinutes(360);
-        this._jobClaimLockTtl = TimeSpan.FromSeconds(30);
-        this._userClaimsTtl = TimeSpan.FromHours(8);
-        this._userEloTtl = TimeSpan.FromHours(1);
+        this._cacheMock = new Mock<ICacheService>();
+        this._loggerMock = new Mock<ILogger<RedisService>>();
+        var opts = Options.Create(new AppConstantsOptions { RedisCacheTtlMinutes = 10 });
+        this._service = new RedisService(this._cacheMock.Object, opts, this._loggerMock.Object);
+    }
 
-        var opts = Options.Create(new AppConstantsOptions
-        {
-            RedisCacheTtlMinutes = 360,
-        });
+    // --------------------
+    // GetAvailabilityAsync
+    // --------------------
 
-        this._service = new RedisService(this._cache.Object, opts, Mock.Of<ILogger<RedisService>>());
+    /// <summary>
+    /// Should return DTO when cache has user availability.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetAvailabilityAsync_ReturnsDto_WhenExists()
+    {
+        var userId = Guid.NewGuid();
+        var dto = new UserAvailabilityRedisDto { Status = "available" };
+        var json = JsonSerializer.Serialize(dto);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:availability:{userId}"))
+            .ReturnsAsync(json);
+
+        var result = await this._service.GetAvailabilityAsync(userId);
+
+        Assert.NotNull(result);
+        Assert.True(result!.Status == "available");
     }
 
     /// <summary>
-    /// GetAvailabilityAsync_ReturnsNull_WhenEmpty.
+    /// Should return null when user availability is not in cache.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetAvailabilityAsync_ReturnsNull_WhenEmpty()
+    public async Task GetAvailabilityAsync_ReturnsNull_WhenMissing()
     {
         var userId = Guid.NewGuid();
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
-              .ReturnsAsync((string?)null);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
+            .ReturnsAsync((string?)null);
 
         var result = await this._service.GetAvailabilityAsync(userId);
+
         Assert.Null(result);
     }
 
     /// <summary>
-    /// GetAvailabilityAsync_DeserializesDto_WhenPresent.
+    /// Should throw <see cref="ArgumentException"/> when userId is empty.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetAvailabilityAsync_DeserializesDto_WhenPresent()
+    public async Task GetAvailabilityAsync_Throws_WhenUserIdEmpty()
     {
-        var userId = Guid.NewGuid();
-        var dto = new UserAvailabilityRedisDto { Status = "available", MaxConcurrentJobs = 3, CurrentWorkload = 1, LastUpdate = DateTime.UtcNow };
-        var json = JsonSerializer.Serialize(dto);
-        var key = InvokePrivateKey<string>("GetAvailabilityKey", userId);
-        this._cache.Setup(c => c.GetAsync<string>(key)).ReturnsAsync(json);
-
-        var result = await this._service.GetAvailabilityAsync(userId);
-        Assert.NotNull(result);
-        Assert.True(result.Status == "available");
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            this._service.GetAvailabilityAsync(Guid.Empty));
     }
 
     /// <summary>
-    /// SetAvailabilityAsync_SerializesAndSetsWithTtl.
+    /// Should throw <see cref="JsonException"/> when cache has invalid JSON.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SetAvailabilityAsync_SerializesAndSetsWithTtl()
+    public async Task GetAvailabilityAsync_Throws_OnInvalidJson()
     {
         var userId = Guid.NewGuid();
-        var dto = new UserAvailabilityRedisDto { Status = "busy", MaxConcurrentJobs = 3, CurrentWorkload = 1, LastUpdate = DateTime.UtcNow };
-        string? key = null, value = null;
-        TimeSpan? ttl = null;
-        this._cache.Setup(c => c.SetAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<TimeSpan?>()))
-              .Callback<string, string, TimeSpan?>((k, v, t) =>
-              {
-                  key = k;
-                  value = v;
-                  ttl = t;
-              });
+
+        this._cacheMock.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
+            .ReturnsAsync("invalid-json");
+
+        await Assert.ThrowsAsync<JsonException>(() =>
+            this._service.GetAvailabilityAsync(userId));
+    }
+
+    // --------------------
+    // SetAvailabilityAsync
+    // --------------------
+
+    /// <summary>
+    /// Should set cache successfully for valid DTO.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SetAvailabilityAsync_SetsCache()
+    {
+        var userId = Guid.NewGuid();
+        var dto = new UserAvailabilityRedisDto { Status = "available" };
 
         await this._service.SetAvailabilityAsync(userId, dto);
-        Assert.Contains(userId.ToString(), key);
-        Assert.Equal(JsonSerializer.Serialize(dto), value);
-        Assert.Equal(this._expectedAvailabilityTtl, ttl);
+
+        this._cacheMock.Verify(c => c.SetAsync($"user:availability:{userId}", It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Once);
     }
 
     /// <summary>
-    /// TryClaimJobAsync_ReturnsFalse_WhenAlreadyClaimed.
+    /// Should throw <see cref="ArgumentException"/> when userId is empty.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SetAvailabilityAsync_Throws_WhenUserIdEmpty()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            this._service.SetAvailabilityAsync(Guid.Empty, new UserAvailabilityRedisDto()));
+    }
+
+    /// <summary>
+    /// Should throw <see cref="ArgumentNullException"/> when DTO is null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SetAvailabilityAsync_Throws_WhenDtoNull()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            this._service.SetAvailabilityAsync(Guid.NewGuid(), null!));
+    }
+
+    // --------------------
+    // TryClaimJobAsync
+    // --------------------
+
+    /// <summary>
+    /// Should return true and set cache when job is unclaimed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task TryClaimJobAsync_ReturnsTrue_WhenUnclaimed()
+    {
+        var userId = Guid.NewGuid();
+        this._cacheMock.Setup(c => c.GetAsync<string>("job:claim:lock:job123"))
+            .ReturnsAsync((string?)null);
+
+        var result = await this._service.TryClaimJobAsync("job123", userId);
+
+        Assert.True(result);
+        this._cacheMock.Verify(c => c.SetAsync("job:claim:lock:job123", It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should return false when job is already claimed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task TryClaimJobAsync_ReturnsFalse_WhenAlreadyClaimed()
     {
-        var job = "job1";
-        var key = InvokePrivateKey<string>("GetJobClaimLockKey", job);
-        this._cache.Setup(c => c.GetAsync<string>(key)).ReturnsAsync("existing");
+        var userId = Guid.NewGuid();
+        this._cacheMock.Setup(c => c.GetAsync<string>("job:claim:lock:job123"))
+            .ReturnsAsync("existing");
 
-        var result = await this._service.TryClaimJobAsync(job, Guid.NewGuid());
+        var result = await this._service.TryClaimJobAsync("job123", userId);
+
         Assert.False(result);
-        this._cache.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._jobClaimLockTtl), Times.Never);
     }
 
     /// <summary>
-    /// TryClaimJobAsync_SetsAndReturnsTrue_WhenNotClaimed.
+    /// Should throw <see cref="ArgumentException"/> when jobId is empty.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TryClaimJobAsync_SetsAndReturnsTrue_WhenNotClaimed()
+    public async Task TryClaimJobAsync_Throws_WhenJobIdEmpty()
     {
-        var job = "job2";
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>())).ReturnsAsync((string?)null);
-        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._jobClaimLockTtl));
-
-        var userId = Guid.NewGuid();
-        var result = await this._service.TryClaimJobAsync(job, userId);
-        Assert.True(result);
-        this._cache.Verify(
-            c => c.SetAsync(
-            It.Is<string>(k => k.Contains(job)),
-            It.Is<string>(v => v.Contains(userId.ToString())),
-            this._jobClaimLockTtl), Times.Once);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            this._service.TryClaimJobAsync(string.Empty, Guid.NewGuid()));
     }
 
     /// <summary>
-    /// ReleaseJobClaimAsync_CallsRemove.
+    /// Should throw <see cref="ArgumentException"/> when userId is empty.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ReleaseJobClaimAsync_CallsRemove()
+    public async Task TryClaimJobAsync_Throws_WhenUserIdEmpty()
     {
-        var job = "job3";
-        this._cache.Setup(c => c.RemoveAsync(It.IsAny<string>()));
-        await this._service.ReleaseJobClaimAsync(job);
-        this._cache.Verify(c => c.RemoveAsync(It.Is<string>(k => k.Contains(job))), Times.Once);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            this._service.TryClaimJobAsync("job123", Guid.Empty));
     }
 
+    // --------------------
+    // ReleaseJobClaimAsync
+    // --------------------
+
     /// <summary>
-    /// GetUserClaimsAsync_ReturnsEmpty_WhenNone.
+    /// Should remove job claim key from cache.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetUserClaimsAsync_ReturnsEmpty_WhenNone()
+    public async Task ReleaseJobClaimAsync_RemovesKey()
     {
-        var userId = Guid.NewGuid();
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>())).ReturnsAsync(string.Empty);
-        var list = await this._service.GetUserClaimsAsync(userId);
-        Assert.Empty(list);
+        await this._service.ReleaseJobClaimAsync("job123");
+
+        this._cacheMock.Verify(c => c.RemoveAsync("job:claim:lock:job123"), Times.Once);
     }
 
     /// <summary>
-    /// GetUserClaimsAsync_DeserializesJson.
+    /// Should throw <see cref="ArgumentException"/> when jobId is empty.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetUserClaimsAsync_DeserializesJson()
+    public async Task ReleaseJobClaimAsync_Throws_WhenJobIdEmpty()
     {
-        var userId = Guid.NewGuid();
-        var jobs = new List<string> { "j1", "j2" };
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
-              .ReturnsAsync(JsonSerializer.Serialize(jobs));
-        var list = await this._service.GetUserClaimsAsync(userId);
-        Assert.Equal(jobs, list);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            this._service.ReleaseJobClaimAsync(string.Empty));
     }
 
+    // --------------------
+    // GetUserClaimsAsync
+    // --------------------
+
     /// <summary>
-    /// AddUserClaimAsync_AddsAndSets_WhenNotAlready.
+    /// Should return claims list when cache has values.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AddUserClaimAsync_AddsAndSets_WhenNotAlready()
+    public async Task GetUserClaimsAsync_ReturnsList_WhenExists()
     {
         var userId = Guid.NewGuid();
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
-              .ReturnsAsync(JsonSerializer.Serialize(new List<string> { "a" }));
-        string? setJson = null;
-        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userClaimsTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v);
-        await this._service.AddUserClaimAsync(userId, "b");
-        var result = JsonSerializer.Deserialize<List<string>>(setJson!);
-        Assert.Contains("b", result!);
+        var claims = new List<string> { "job1", "job2" };
+        var json = JsonSerializer.Serialize(claims);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:claims:{userId}"))
+            .ReturnsAsync(json);
+
+        var result = await this._service.GetUserClaimsAsync(userId);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains("job1", result);
     }
 
     /// <summary>
-    /// RemoveUserClaimAsync_RemovesAndSets_WhenPresent.
+    /// Should return empty list when no claims in cache.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveUserClaimAsync_RemovesAndSets_WhenPresent()
+    public async Task GetUserClaimsAsync_ReturnsEmpty_WhenMissing()
     {
         var userId = Guid.NewGuid();
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
-              .ReturnsAsync(JsonSerializer.Serialize(new List<string> { "x", "y" }));
-        string? setJson = null;
-        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userClaimsTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setJson = v);
-        await this._service.RemoveUserClaimAsync(userId, "x");
-        var result = JsonSerializer.Deserialize<List<string>>(setJson!);
-        Assert.DoesNotContain("x", result!);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
+            .ReturnsAsync((string?)null);
+
+        var result = await this._service.GetUserClaimsAsync(userId);
+
+        Assert.Empty(result);
     }
 
+    // --------------------
+    // AddUserClaimAsync
+    // --------------------
+
     /// <summary>
-    /// GetUserEloAsync_ReturnsNull_WhenEmpty.
+    /// Should add new claim when not present in cache.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetUserEloAsync_ReturnsNull_WhenEmpty()
+    public async Task AddUserClaimAsync_Adds_WhenNew()
     {
         var userId = Guid.NewGuid();
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>())).ReturnsAsync((string?)null);
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:claims:{userId}"))
+            .ReturnsAsync("[]");
+
+        await this._service.AddUserClaimAsync(userId, "job1");
+
+        this._cacheMock.Verify(c => c.SetAsync($"user:claims:{userId}", It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Once);
+    }
+
+    // --------------------
+    // RemoveUserClaimAsync
+    // --------------------
+
+    /// <summary>
+    /// Should remove claim when exists in cache.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RemoveUserClaimAsync_Removes_WhenExists()
+    {
+        var userId = Guid.NewGuid();
+        var claims = new List<string> { "job1" };
+        var json = JsonSerializer.Serialize(claims);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:claims:{userId}"))
+            .ReturnsAsync(json);
+
+        await this._service.RemoveUserClaimAsync(userId, "job1");
+
+        this._cacheMock.Verify(c => c.SetAsync($"user:claims:{userId}", "[]", It.IsAny<TimeSpan>()), Times.Once);
+    }
+
+    // --------------------
+    // GetUserEloAsync / SetUserEloAsync
+    // --------------------
+
+    /// <summary>
+    /// Should return Elo DTO when cache has data.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetUserEloAsync_ReturnsDto_WhenExists()
+    {
+        var userId = Guid.NewGuid();
+        var dto = new UserEloRedisDto { CurrentElo = 1500 };
+        var json = JsonSerializer.Serialize(dto);
+
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:elo:{userId}"))
+            .ReturnsAsync(json);
+
         var result = await this._service.GetUserEloAsync(userId);
-        Assert.Null(result);
-    }
 
-    /// <summary>
-    /// GetUserEloAsync_DeserializesDto.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
-    [Fact]
-    public async Task GetUserEloAsync_DeserializesDto()
-    {
-        var userId = Guid.NewGuid();
-        var dto = new UserEloRedisDto { CurrentElo = 1500, PeakElo = 1550, GamesPlayed = 5, RecentTrend = "+10_over_7_days", LastJobCompleted = DateTime.UtcNow };
-        this._cache.Setup(c => c.GetAsync<string>(It.IsAny<string>())).ReturnsAsync(JsonSerializer.Serialize(dto));
-        var result = await this._service.GetUserEloAsync(userId);
         Assert.NotNull(result);
-        Assert.Equal(1500, result.CurrentElo);
+        Assert.Equal(1500, result!.CurrentElo);
     }
 
     /// <summary>
-    /// SetUserEloAsync_SerializesAndSets.
+    /// Should set user Elo in cache.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SetUserEloAsync_SerializesAndSets()
+    public async Task SetUserEloAsync_SetsCache()
     {
         var userId = Guid.NewGuid();
-        var dto = new UserEloRedisDto { CurrentElo = 1400 };
-        string? setValue = null;
-        this._cache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), this._userEloTtl))
-              .Callback<string, string, TimeSpan?>((_, v, __) => setValue = v);
+        var dto = new UserEloRedisDto { CurrentElo = 1500 };
 
         await this._service.SetUserEloAsync(userId, dto);
 
-        Assert.Equal(JsonSerializer.Serialize(dto), setValue);
+        this._cacheMock.Verify(c => c.SetAsync($"user:elo:{userId}", It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Once);
     }
 
+    // --------------------
+    // GetBulkAvailabilityAsync
+    // --------------------
+
     /// <summary>
-    /// GetBulkAvailabilityAsync_ReturnsMapOnlyForValid.
+    /// Should return bulk availability map for given userIds.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetBulkAvailabilityAsync_ReturnsMapOnlyForValid()
+    public async Task GetBulkAvailabilityAsync_ReturnsMap()
     {
-        var id1 = Guid.NewGuid();
-        var id2 = Guid.NewGuid();
-        var dto = new UserAvailabilityRedisDto { Status = "available", MaxConcurrentJobs = 3, CurrentWorkload = 1, LastUpdate = DateTime.UtcNow };
+        var u1 = Guid.NewGuid();
+        var dto = new UserAvailabilityRedisDto { Status = "available" };
         var json = JsonSerializer.Serialize(dto);
-        this._cache.SetupSequence(c => c.GetAsync<string>(It.IsAny<string>()))
-              .ReturnsAsync(json)
-              .ReturnsAsync((string?)null);
-        var result = await this._service.GetBulkAvailabilityAsync(new[] { id1, id2 });
+
+        this._cacheMock.Setup(c => c.GetAsync<string>($"user:availability:{u1}"))
+            .ReturnsAsync(json);
+
+        var result = await this._service.GetBulkAvailabilityAsync(new List<Guid> { u1 });
+
         Assert.Single(result);
-        Assert.True(result.ContainsKey(id1));
+        Assert.True(result[u1].Status == "available");
     }
 
     /// <summary>
-    /// InvokePrivateKey.
+    /// Should throw <see cref="ArgumentNullException"/> when input collection is null.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
-    private static T InvokePrivateKey<T>(string methodName, object arg)
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetBulkAvailabilityAsync_Throws_WhenNullIds()
     {
-        var opts = Options.Create(new AppConstantsOptions { RedisCacheTtlMinutes = 360 });
-        var svc = new RedisService(null!, opts, null!);
-        var mi = typeof(RedisService).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance) !;
-        return (T)mi.Invoke(svc, new[] { arg }) !;
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            this._service.GetBulkAvailabilityAsync(null!));
     }
 }

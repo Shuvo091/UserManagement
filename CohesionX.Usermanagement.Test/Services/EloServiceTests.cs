@@ -14,7 +14,7 @@ using SharedLibrary.Contracts.Usermanagement.Requests;
 using SharedLibrary.Contracts.Usermanagement.Responses;
 using SharedLibrary.Kafka.Services.Interfaces;
 
-namespace CohesionX.UserManagement.Application.Tests;
+namespace CohesionX.UserManagement.Tests.Services;
 
 /// <summary>
 /// Tests for ELO service.
@@ -367,5 +367,195 @@ public class EloServiceTests
     {
         var req = new ThreeWayEloUpdateRequest { ThreeWayEloChanges = new List<ThreeWayEloChange>(new ThreeWayEloChange[count]) };
         await Assert.ThrowsAsync<ArgumentException>(() => this._service.ResolveThreeWay(req));
+    }
+
+    /// <summary>
+    /// GetEloTrend_Throws_When_HistoriesIsNull.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Throws_When_HistoriesIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => this._service.GetEloTrend(null!, 7));
+    }
+
+    /// <summary>
+    /// GetEloTrend_Throws_When_DaysNotPositive.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Throws_When_DaysNotPositive()
+    {
+        var list = new List<EloHistory>();
+        Assert.Throws<ArgumentOutOfRangeException>(() => this._service.GetEloTrend(list, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => this._service.GetEloTrend(list, -5));
+    }
+
+    /// <summary>
+    /// GetEloTrend_Returns_Default_When_NoHistoryInPeriod.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Returns_Default_When_NoHistoryInPeriod()
+    {
+        var old = new EloHistory { ChangedAt = DateTime.UtcNow.AddDays(-30), OldElo = 1000, NewElo = 1010 };
+        var list = new List<EloHistory> { old };
+
+        var result = this._service.GetEloTrend(list, 7);
+
+        Assert.Equal("0_over_7_days", result);
+    }
+
+    /// <summary>
+    /// GetEloTrend_Returns_PositiveTrend.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Returns_PositiveTrend()
+    {
+        var now = DateTime.UtcNow;
+        var list = new List<EloHistory>
+    {
+        new () { ChangedAt = now.AddDays(-5), OldElo = 1000, NewElo = 1010 },
+        new () { ChangedAt = now.AddDays(-1), OldElo = 1010, NewElo = 1030 },
+    };
+
+        var result = this._service.GetEloTrend(list, 7);
+
+        Assert.Equal("+30_over_7_days", result);
+    }
+
+    /// <summary>
+    /// GetEloTrend_Returns_NegativeTrend.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Returns_NegativeTrend()
+    {
+        var now = DateTime.UtcNow;
+        var list = new List<EloHistory>
+    {
+        new () { ChangedAt = now.AddDays(-5), OldElo = 1200, NewElo = 1180 },
+        new () { ChangedAt = now.AddDays(-1), OldElo = 1180, NewElo = 1150 },
+    };
+
+        var result = this._service.GetEloTrend(list, 7);
+
+        Assert.Equal("-50_over_7_days", result);
+    }
+
+    /// <summary>
+    /// GetEloTrend_Returns_ZeroTrend_When_NoChange.
+    /// </summary>
+    [Fact]
+    public void GetEloTrend_Returns_ZeroTrend_When_NoChange()
+    {
+        var now = DateTime.UtcNow;
+        var list = new List<EloHistory>
+    {
+        new () { ChangedAt = now.AddDays(-2), OldElo = 1000, NewElo = 1000 },
+        new () { ChangedAt = now, OldElo = 1000, NewElo = 1000 },
+    };
+
+        var result = this._service.GetEloTrend(list, 7);
+
+        Assert.Equal("+0_over_7_days", result);
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Throws_When_UserIdsNullOrEmpty.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Throws_When_UserIdsNullOrEmpty()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => this._service.BulkEloTrendAsync(null!, 7));
+        await Assert.ThrowsAsync<ArgumentException>(() => this._service.BulkEloTrendAsync(new List<Guid>(), 7));
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Throws_When_DaysNotPositive.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Throws_When_DaysNotPositive()
+    {
+        var ids = new List<Guid> { Guid.NewGuid() };
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => this._service.BulkEloTrendAsync(ids, 0));
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Returns_Default_When_NoHistories.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Returns_Default_When_NoHistories()
+    {
+        var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
+        this._eloRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<EloHistory, bool>>>(), It.IsAny<bool>()))
+                .ReturnsAsync(new List<EloHistory>());
+
+        var dict = await this._service.BulkEloTrendAsync(ids, 7);
+
+        Assert.All(dict.Values, v => Assert.Equal("0_over_7_days", v));
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Computes_PositiveTrend.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Computes_PositiveTrend()
+    {
+        var userId = Guid.NewGuid();
+        var histories = new List<EloHistory>
+    {
+        new () { UserId = userId, ChangedAt = DateTime.UtcNow.AddDays(-5), OldElo = 1000, NewElo = 1010 },
+        new () { UserId = userId, ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1010, NewElo = 1050 },
+    };
+        this._eloRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<EloHistory, bool>>>(), It.IsAny<bool>()))
+                .ReturnsAsync(histories);
+
+        var dict = await this._service.BulkEloTrendAsync(new List<Guid> { userId }, 7);
+
+        Assert.Equal("+50_over_7_days", dict[userId]);
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Computes_NegativeTrend.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Computes_NegativeTrend()
+    {
+        var userId = Guid.NewGuid();
+        var histories = new List<EloHistory>
+    {
+        new () { UserId = userId, ChangedAt = DateTime.UtcNow.AddDays(-5), OldElo = 1200, NewElo = 1190 },
+        new () { UserId = userId, ChangedAt = DateTime.UtcNow.AddDays(-1), OldElo = 1190, NewElo = 1150 },
+    };
+        this._eloRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<EloHistory, bool>>>(), It.IsAny<bool>()))
+                .ReturnsAsync(histories);
+
+        var dict = await this._service.BulkEloTrendAsync(new List<Guid> { userId }, 7);
+
+        Assert.Equal("-50_over_7_days", dict[userId]);
+    }
+
+    /// <summary>
+    /// BulkEloTrendAsync_Returns_Default_When_UserHasNoHistory.
+    /// </summary>
+    /// <returns>Task.</returns>
+    [Fact]
+    public async Task BulkEloTrendAsync_Returns_Default_When_UserHasNoHistory()
+    {
+        var id1 = Guid.NewGuid();
+        var id2 = Guid.NewGuid();
+        var histories = new List<EloHistory>
+    {
+        new () { UserId = id1, ChangedAt = DateTime.UtcNow, OldElo = 1000, NewElo = 1020 },
+    };
+        this._eloRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<EloHistory, bool>>>(), It.IsAny<bool>()))
+                .ReturnsAsync(histories);
+
+        var dict = await this._service.BulkEloTrendAsync(new List<Guid> { id1, id2 }, 7);
+
+        Assert.Equal("+20_over_7_days", dict[id1]);
+        Assert.Equal("0_over_7_days", dict[id2]);
     }
 }

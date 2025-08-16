@@ -388,13 +388,7 @@ public class EloService : IEloService
         var grouped = recentHistories.GroupBy(eh => eh.UserId).ToDictionary(g => g.Key, g =>
         {
             var ordered = g.OrderBy(e => e.ChangedAt).ToList();
-            if (ordered.Count < 2)
-            {
-                this.logger.LogInformation("Not enough Elo history for UserId: {UserId}. Returning default trend.", g.Key);
-                return $"0_over_{days}_days";
-            }
-
-            var earliest = ordered.First().NewElo;
+            var earliest = ordered.First().OldElo;
             var latest = ordered.Last().NewElo;
             var diff = latest - earliest;
             var sign = diff >= 0 ? "+" : "-";
