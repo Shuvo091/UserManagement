@@ -302,7 +302,7 @@ public class UserService : IUserService
     /// <inheritdoc/>
     public async Task<List<User>> GetFilteredUser(string? dialect, int? minElo, int? maxElo, int? maxWorkload, int? limit)
     {
-        var users = await this.repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit);
+        var users = await this.repo.GetFilteredUser(dialect, minElo, maxElo, maxWorkload, limit) ?? new List<User>();
 
         this.logger.LogInformation(
             "Filtered users retrieved. Count: {Count}, Filter: {{Dialect: {Dialect}, MinElo: {MinElo}, MaxElo: {MaxElo}, MaxWorkload: {MaxWorkload}, Limit: {Limit}}}",
@@ -465,7 +465,8 @@ public class UserService : IUserService
     }
 
     /// <inheritdoc/>
-    public async Task<ClaimJobResponse> ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, List<Guid>? originalTranscribers = null, int? requiredMinElo = null)
+    // Made virtual for testability
+    public virtual async Task<ClaimJobResponse> ClaimJobAsync(Guid userId, ClaimJobRequest claimJobRequest, List<Guid>? originalTranscribers = null, int? requiredMinElo = null)
     {
         if (userId == Guid.Empty)
         {
