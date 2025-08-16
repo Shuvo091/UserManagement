@@ -12,11 +12,6 @@ public class AppConstantsOptions
     /// <summary>
     /// Gets or sets a value indicating whether gets or sets the default language for the application.
     /// </summary>
-    public bool EnableGrpc { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether gets or sets the default language for the application.
-    /// </summary>
     public bool EnableIdDocumentCollection { get; set; }
 
     /// <summary>

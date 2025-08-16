@@ -79,7 +79,6 @@ services:
       IdentityServerOptions__ApiName: "api"
 
       # App Constants
-      AppConstantsOptions__EnableGrpc: "false"
       AppConstantsOptions__EnableIdDocumentCollection: "true"
       AppConstantsOptions__PopiaComplianceMode: "strict"
       AppConstantsOptions__InitialEloRating: "1200"

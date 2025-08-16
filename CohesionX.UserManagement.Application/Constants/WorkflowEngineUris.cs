@@ -8,5 +8,5 @@ public static class WorkflowEngineUris
     /// <summary>
     /// Gets the endpoint for notifying the Workflow Engine about a updated elo.
     /// </summary>
-    public static string NotifyEloUpdate => " /api/v1/workflow/notify-elo-update";
+    public static string NotifyEloUpdate => "/webhook/user-events";
 }
